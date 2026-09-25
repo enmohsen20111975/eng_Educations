@@ -219,3 +219,33 @@ Stage Summary:
 - On load: 4 lessons upgraded from DRAFT/abbreviated to READY/HIGH/VERIFIED/1.0.0 with the full 24-section template; 4 KnowledgeObjects created at READY; 20 questions created at READY/HIGH/VERIFIED with enrichment fields; 6 References upserted at LEVEL 6. Existing abbreviated questions for this section are deleted and replaced (questions for OTHER sections are untouched).
 - This file is the gold-standard template for all 22 remaining sections — same shape (RefLesson[] + RefSource[] + loadReference()), same depth per section, same enrichment per question, same source-hierarchy LEVEL 6 citations.
 - Caveats: (1) Arabic `titleAr` values are inherited from the existing seed and not re-translated; (2) the loadReference function uses `db.question.deleteMany({ where: { sectionId } })` which is correct for this section (we own all 4 lessons) but should NOT be copied verbatim into a partial-section loader; (3) the loadReference function intentionally does not delete existing KnowledgeObjects — it updates them in place by (sectionId, lessonId, title) findFirst; orphaned KOs from deleted lessons would need separate cleanup. None of these affect the engineering-mathematics load.
+
+---
+Task ID: 10
+Agent: main
+Task: Git incremental commits + remote/branch setup + browser verification
+
+Work Log:
+- Updated .gitignore (ignore binary db/*.db, tool-results/, shot-*.png, download/, upload/).
+- Untracked db/custom.db (rebuilt via db:push + seed).
+- 4 incremental commits on a new `web-platform` branch:
+  1) feat(engine): data-collector schema v2 (KnowledgeObject, Reference,
+     24-section template, lifecycle statuses, question enrichment).
+  2) feat(tracker): coverage tracker + 24-section lesson rendering + lifecycle APIs.
+  3) feat(content): gold-standard full-spec Engineering Mathematics (reference).
+  4) docs: worklog update.
+- Added remote `origin` -> https://github.com/enmohsen20111975/eng_Educations.git
+  on branch `web-platform` (keeps FastAPI `main` untouched).
+- Did NOT push: the previously-shared GitHub token was posted in plaintext
+  and must be revoked; pushing requires a fresh token. Remote + branch ready
+  so a push is one command away.
+- Agent Browser verified: Coverage tracker shows overall 4%, eng-math 100%
+  with FULL-SPEC badge and 20/20 ready questions; full-spec lesson renders
+  all 24 sections + READY badge (no DRAFT notice). Lint clean (0 errors).
+
+Stage Summary:
+- Honest current state visible in the tracker: 4/92 lessons full-spec, 20/306
+  questions READY, overall 4%. Engineering Mathematics is the gold standard.
+- Next rounds: author full-spec content for the remaining 22 sections using
+  the same pipeline (src/lib/ref-content/<slug>.ts + loadReference), one
+  section per round, tracked live in the Coverage Tracker.
