@@ -41,8 +41,54 @@ export interface Lesson {
   keyFormulas: string | null;
   exercise: string | null;
   durationMin: number;
+  // v2
+  sections: string | null; // JSON string of the 24-section template
+  referenceIds: string | null; // JSON string[] of Reference ids
+  status: ContentStatus;
+  version: string;
+  confidence: string; // LOW|MEDIUM|HIGH
+  verificationStatus: string; // PENDING|VERIFIED|FAILED|HUMAN_REVIEW_REQUIRED
+  lastReviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ContentStatus =
+  | "DRAFT"
+  | "REQUIRES_RESEARCH"
+  | "NOT_READY"
+  | "READY"
+  | "HUMAN_REVIEW_REQUIRED";
+
+export interface KnowledgeObject {
+  id: string;
+  sectionId: string;
+  lessonId: string | null;
+  title: string;
+  domain: string | null;
+  competency: string | null;
+  topic: string | null;
+  concept: string | null;
+  body: string; // JSON string
+  version: string;
+  confidence: string;
+  verificationStatus: string;
+  status: ContentStatus;
+  referenceIds: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Reference {
+  id: string;
+  sectionId: string | null;
+  title: string;
+  level: string;
+  levelLabel: string;
+  type: string;
+  url: string | null;
+  citation: string;
+  createdAt: string;
 }
 
 export interface QuestionOption {
@@ -60,9 +106,18 @@ export interface Question {
   type: QuestionType;
   difficulty: Difficulty;
   bloomLevel: BloomLevel;
+  cognitiveLevel: string | null;
   skillType: string | null;
   stem: string;
   explanation: string | null;
+  // v2 enrichment
+  whyCorrect: string | null;
+  whyOthersWrong: string | null; // JSON string[]
+  referenceIds: string | null; // JSON string[]
+  knowledgeObjectId: string | null;
+  status: ContentStatus;
+  verificationStatus: string;
+  version: string;
   createdAt: string;
   updatedAt: string;
   options: QuestionOption[];
@@ -84,6 +139,53 @@ export interface MatrixCell {
   type: QuestionType;
   targetCount: number;
   currentCount: number;
+}
+
+/** A row of the Coverage Tracker: one section with per-lesson + aggregate
+ * lifecycle status, Knowledge Object and question counts, and a readiness % */
+export interface TrackerLesson {
+  id: string;
+  title: string;
+  order: number;
+  status: ContentStatus;
+  hasFullTemplate: boolean; // sections JSON present (24-section upgrade)
+  koCount: number;
+  questionCount: number;
+  readyQuestions: number;
+}
+export interface TrackerSection {
+  id: string;
+  title: string;
+  titleAr: string | null;
+  slug: string;
+  order: number;
+  icon: string;
+  color: string;
+  lessons: TrackerLesson[];
+  // aggregates
+  lessonsTotal: number;
+  lessonsReady: number; // status === READY
+  lessonsFullTemplate: number; // upgraded to 24-section spec
+  koCount: number;
+  questionsTotal: number;
+  questionsReady: number;
+  referencesCount: number;
+  readiness: number; // 0..100 (weighted: lessons ready + full-template + ready questions)
+}
+export interface TrackerSummary {
+  sections: TrackerSection[];
+  totals: {
+    sections: number;
+    lessons: number;
+    lessonsReady: number;
+    lessonsFullTemplate: number;
+    knowledgeObjects: number;
+    questions: number;
+    questionsReady: number;
+    references: number;
+    overallReadiness: number;
+  };
+  byStatus: { status: ContentStatus; lessons: number; questions: number }[];
 }
 
 export interface QuizStartResponse {

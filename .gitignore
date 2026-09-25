@@ -52,3 +52,17 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Binary database + journals (rebuild via `bun run db:push` + seed)
+db/*.db
+db/*.db-journal
+
+# Agent-browser / scratch artifacts
+tool-results/
+*.webm
+shot-*.png
+progress-check.png
+
+# Local scratch dirs
+download/
+upload/

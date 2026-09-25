@@ -1,5 +1,6 @@
-// Engineer's Educations — Prisma schema
-// SQLite backend for the engineering education platform.
+// Engineer's Educations — Prisma schema (v2: data-collector engine support)
+// Adds: KnowledgeObject, Reference (source hierarchy), structured 24-section
+// lessons, status/version/confidence/verification fields, question enrichment.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,6 +11,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Lifecycle / verification status shared by Lessons, Questions, KnowledgeObjects.
+/// DRAFT = generated but not validated · REQUIRES_RESEARCH = gap, no source yet ·
+/// NOT_READY = failed a quality gate · READY = passed all gates ·
+/// HUMAN_REVIEW_REQUIRED = unresolved source conflict / judgment needed.
+model ContentStatus {
+  id    String @id
+  count Int    @default(0)
+}
+
 /// An engineering discipline / chapter (target: 23 sections).
 model Section {
   id          String   @id @default(cuid())
@@ -17,8 +27,8 @@ model Section {
   title       String
   titleAr     String?
   description String
-  icon        String // lucide icon name, e.g. "Calculator"
-  color       String // tailwind-ish accent, e.g. "emerald"
+  icon        String // lucide icon name
+  color       String // tailwind accent
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -27,10 +37,14 @@ model Section {
   questions   Question[]
   matrixCells GenerationMatrixCell[]
   attempts    QuizAttempt[]
+  knowledgeObjects KnowledgeObject[]
+  references  Reference[]
 }
 
-/// A lesson inside a section. Richer than concept_introduction only:
-/// conceptIntroduction + example + keyFormulas + exercise.
+/// A lesson inside a section. v2: supports the full 24-section data-collector
+/// template via `sections` (Json), plus lifecycle metadata. The legacy fields
+/// (conceptIntroduction/example/keyFormulas/exercise) remain for backward-compat
+/// with DRAFT lessons that have not yet been upgraded to the full template.
 model Lesson {
   id                  String   @id @default(cuid())
   sectionId           String
@@ -38,33 +52,63 @@ model Lesson {
   title               String
   titleAr             String?
   order               Int      @default(0)
-  conceptIntroduction String   /// markdown-ish text
-  example             String?  /// worked example (markdown)
-  keyFormulas         String?  /// newline-separated formulas / facts
-  exercise            String?  /// practice prompt (markdown)
+
+  // ---- Legacy (abbreviated) content, kept for DRAFT lessons ----
+  conceptIntroduction String
+  example             String?
+  keyFormulas         String?
+  exercise            String?
   durationMin         Int      @default(15)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+
+  // ---- v2: full 24-section data-collector template ----
+  /// Json object keyed by the 24 template sections; each value is a string or
+  /// "NOT_APPLICABLE". Null when the lesson has not been upgraded yet.
+  sections            String?  // JSON string (SQLite Json stored as TEXT)
+  /// Json array of Reference ids supporting this lesson.
+  referenceIds        String?  // JSON string
+
+  // ---- v2: lifecycle metadata ----
+  status              String   @default("DRAFT") // DRAFT|REQUIRES_RESEARCH|NOT_READY|READY|HUMAN_REVIEW_REQUIRED
+  version             String   @default("0.1.0")
+  confidence          String   @default("LOW")   // LOW|MEDIUM|HIGH
+  verificationStatus   String   @default("PENDING") // PENDING|VERIFIED|FAILED|HUMAN_REVIEW_REQUIRED
+  lastReviewedAt      DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   section   Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   questions Question[]
+  knowledgeObjects KnowledgeObject[]
 
   @@unique([sectionId, slug])
   @@index([sectionId])
+  @@index([status])
 }
 
-/// A question in the bank. Follows the Generation Matrix axes:
-/// difficulty × bloomLevel × type, scoped to a section (and optionally a lesson).
+/// A Question in the bank. v2: enriched per the data-collector Question Engine:
+/// why_correct, why_others_wrong, cognitive_level, source_refs, KO link,
+/// lifecycle status.
 model Question {
   id           String   @id @default(cuid())
   sectionId    String
-  lessonId     String?  /// optional link to a specific lesson
-  type         String   /// "MultipleChoice" | "TrueFalse"
-  difficulty   String   /// "Easy" | "Medium" | "Hard"
-  bloomLevel   String   /// "Remember" | "Understand" | "Apply" | "Analyze"
-  skillType    String?  /// e.g. "Conceptual" | "Numerical" | "Definitional"
-  stem         String   /// question text
-  explanation  String?  /// why the answer is correct
+  lessonId     String?
+  type         String   // "MultipleChoice" | "TrueFalse"
+  difficulty   String   // "Easy" | "Medium" | "Hard"
+  bloomLevel   String   // "Remember" | "Understand" | "Apply" | "Analyze"
+  cognitiveLevel String? // "Recall|Understanding|Application|Analysis|Evaluation|Calculation|Scenario|DecisionMaking"
+  skillType    String?
+  stem         String
+  explanation  String?
+  // v2 enrichment
+  whyCorrect        String?  // why the correct answer is correct
+  whyOthersWrong    String?  // JSON string[] — why each distractor is wrong
+  referenceIds      String?  // JSON string[] of Reference ids
+  knowledgeObjectId String?
+  status            String   @default("DRAFT")
+  verificationStatus String  @default("PENDING")
+  version           String   @default("0.1.0")
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -72,10 +116,12 @@ model Question {
   lesson    Lesson?         @relation(fields: [lessonId], references: [id], onDelete: SetNull)
   options   QuestionOption[]
   attempts  QuizAnswer[]
+  knowledgeObject KnowledgeObject? @relation(fields: [knowledgeObjectId], references: [id], onDelete: SetNull)
 
   @@index([sectionId])
   @@index([sectionId, difficulty])
   @@index([lessonId])
+  @@index([status])
 }
 
 /// One option of a multiple-choice / true-false question.
@@ -85,14 +131,11 @@ model QuestionOption {
   text        String
   isCorrect   Boolean  @default(false)
   order       Int      @default(0)
-
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
   @@index([questionId])
 }
 
-/// A target cell of the Generation Matrix: how many questions of a given
-/// (section, difficulty, bloom, type) we aim to have.
+/// A target cell of the Generation Matrix.
 model GenerationMatrixCell {
   id           String   @id @default(cuid())
   sectionId    String
@@ -102,10 +145,57 @@ model GenerationMatrixCell {
   targetCount  Int      @default(20)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
   section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-
   @@unique([sectionId, difficulty, bloomLevel, type])
+  @@index([sectionId])
+}
+
+/// A Knowledge Object — the structured, source-backed unit of knowledge per the
+/// data-collector spec §7. `body` holds the full JSON structure (definitions,
+/// principles, components, mechanism, process, formulas, metrics, examples,
+/// industrial_examples, case_studies, common_errors, limitations, best_practices,
+/// related_concepts, prerequisites, references). Lifecycle metadata kept top-level.
+model KnowledgeObject {
+  id        String   @id @default(cuid())
+  sectionId String
+  lessonId  String?
+  title     String
+  domain    String?
+  competency String?
+  topic     String?
+  concept   String?
+  body      String   // JSON string — the full KO structure
+  version   String   @default("0.1.0")
+  confidence String  @default("LOW") // LOW|MEDIUM|HIGH
+  verificationStatus String @default("PENDING") // PENDING|VERIFIED|FAILED|HUMAN_REVIEW_REQUIRED
+  status    String   @default("DRAFT")
+  referenceIds String? // JSON string[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  section  Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  lesson   Lesson?  @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  questions Question[]
+
+  @@index([sectionId])
+  @@index([lessonId])
+  @@index([status])
+}
+
+/// A source / reference following the source hierarchy (§5). Level 1 = official
+/// certification body … Level 9 = secondary educational sources. Linked to
+/// lessons, questions, knowledge objects via their `referenceIds` JSON arrays.
+model Reference {
+  id        String   @id @default(cuid())
+  sectionId String?
+  title     String
+  level     String   // "1".."9"
+  levelLabel String  // e.g. "Official Certification Body"
+  type      String   // BOOK|STANDARD|HANDBOOK|PAPER|WEBSITE|...
+  url       String?
+  citation  String
+  createdAt DateTime @default(now())
+  section   Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   @@index([sectionId])
 }
 
@@ -116,7 +206,6 @@ model Student {
   level     String   @default("Undergraduate")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   attempts  QuizAttempt[]
 }
 
@@ -125,19 +214,17 @@ model QuizAttempt {
   id            String    @id @default(cuid())
   studentId     String?
   sectionId     String?
-  studentKey    String    /// stable per-device key when no Student row
+  studentKey    String
   startedAt     DateTime  @default(now())
   completedAt   DateTime?
-  score         Int       @default(0)   /// number correct
+  score         Int       @default(0)
   totalQuestions Int      @default(0)
   durationSec   Int       @default(0)
-  questionIds   String    /// JSON: string[]
+  questionIds   String
   createdAt     DateTime  @default(now())
-
   student  Student?      @relation(fields: [studentId], references: [id], onDelete: SetNull)
   section  Section?      @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   answers  QuizAnswer[]
-
   @@index([studentId])
   @@index([sectionId])
 }
@@ -147,12 +234,10 @@ model QuizAnswer {
   id            String   @id @default(cuid())
   attemptId     String
   questionId    String
-  selectedOptionId String? /// null => skipped / timed-out
+  selectedOptionId String?
   isCorrect     Boolean  @default(false)
   timeSpentSec  Int      @default(0)
-
   attempt   QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   question  Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
   @@index([attemptId])
 }
