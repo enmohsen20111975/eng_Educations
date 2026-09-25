@@ -73,6 +73,7 @@ export async function GET() {
         color: c.color,
         icon: c.icon,
         order: c.order,
+        group: c.group,
         domains: c.domains.map((d) => ({
           id: d.id,
           code: d.code,

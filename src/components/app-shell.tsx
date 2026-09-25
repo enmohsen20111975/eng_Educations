@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Target,
   Award,
+  Library,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAppStore, type View } from "@/lib/store";
@@ -57,6 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const store = useAppStore();
   const nav: NavItem[] = [
     { id: "home", label: "Home", icon: LayoutDashboard, open: store.openHome },
+    { id: "library", label: "Library", icon: Library, open: store.openLibrary },
     { id: "certifications", label: "Certs", icon: Award, open: store.openCertifications },
     { id: "curriculum", label: "Curriculum", icon: BookOpen, open: store.openCurriculum },
     { id: "quiz", label: "Quiz", icon: ListChecks, open: () => store.openQuiz(null) },

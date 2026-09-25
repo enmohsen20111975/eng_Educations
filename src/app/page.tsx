@@ -9,6 +9,7 @@ import { QuizView } from "@/components/student/quiz";
 import { ProgressView } from "@/components/student/progress";
 import { TrackerView } from "@/components/student/tracker";
 import { CertificationsView } from "@/components/student/certifications";
+import { LibraryView } from "@/components/student/library";
 import { AdminView } from "@/components/admin/admin-view";
 
 export default function Home() {
@@ -17,6 +18,7 @@ export default function Home() {
   return (
     <AppShell>
       {view === "home" && <HomeView />}
+      {view === "library" && <LibraryView />}
       {view === "certifications" && <CertificationsView />}
       {view === "curriculum" && <CurriculumView />}
       {view === "lesson" && <LessonView />}

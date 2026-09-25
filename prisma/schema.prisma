@@ -37,6 +37,7 @@ model Section {
   icon        String
   color       String
   order       Int      @default(0)
+  group       String?  // scientific subject group (Engineering Fundamentals | Mechanical | Civil & Construction | Electrical & Control | Maintenance & Reliability | Project & Business | Quality)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -196,6 +197,7 @@ model Certification {
   color           String   @default("emerald")
   icon            String   @default("Award")
   order           Int      @default(0)
+  group           String?  // scientific subject group (Maintenance & Reliability | Project & Business | Quality | ...)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
