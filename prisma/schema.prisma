@@ -1,0 +1,158 @@
+// Engineer's Educations — Prisma schema
+// SQLite backend for the engineering education platform.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// An engineering discipline / chapter (target: 23 sections).
+model Section {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  titleAr     String?
+  description String
+  icon        String // lucide icon name, e.g. "Calculator"
+  color       String // tailwind-ish accent, e.g. "emerald"
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lessons     Lesson[]
+  questions   Question[]
+  matrixCells GenerationMatrixCell[]
+  attempts    QuizAttempt[]
+}
+
+/// A lesson inside a section. Richer than concept_introduction only:
+/// conceptIntroduction + example + keyFormulas + exercise.
+model Lesson {
+  id                  String   @id @default(cuid())
+  sectionId           String
+  slug                String
+  title               String
+  titleAr             String?
+  order               Int      @default(0)
+  conceptIntroduction String   /// markdown-ish text
+  example             String?  /// worked example (markdown)
+  keyFormulas         String?  /// newline-separated formulas / facts
+  exercise            String?  /// practice prompt (markdown)
+  durationMin         Int      @default(15)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  section   Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@unique([sectionId, slug])
+  @@index([sectionId])
+}
+
+/// A question in the bank. Follows the Generation Matrix axes:
+/// difficulty × bloomLevel × type, scoped to a section (and optionally a lesson).
+model Question {
+  id           String   @id @default(cuid())
+  sectionId    String
+  lessonId     String?  /// optional link to a specific lesson
+  type         String   /// "MultipleChoice" | "TrueFalse"
+  difficulty   String   /// "Easy" | "Medium" | "Hard"
+  bloomLevel   String   /// "Remember" | "Understand" | "Apply" | "Analyze"
+  skillType    String?  /// e.g. "Conceptual" | "Numerical" | "Definitional"
+  stem         String   /// question text
+  explanation  String?  /// why the answer is correct
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  section   Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  lesson    Lesson?         @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  options   QuestionOption[]
+  attempts  QuizAnswer[]
+
+  @@index([sectionId])
+  @@index([sectionId, difficulty])
+  @@index([lessonId])
+}
+
+/// One option of a multiple-choice / true-false question.
+model QuestionOption {
+  id          String   @id @default(cuid())
+  questionId  String
+  text        String
+  isCorrect   Boolean  @default(false)
+  order       Int      @default(0)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+/// A target cell of the Generation Matrix: how many questions of a given
+/// (section, difficulty, bloom, type) we aim to have.
+model GenerationMatrixCell {
+  id           String   @id @default(cuid())
+  sectionId    String
+  difficulty   String
+  bloomLevel   String
+  type         String
+  targetCount  Int      @default(20)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, difficulty, bloomLevel, type])
+  @@index([sectionId])
+}
+
+/// A local learner (no auth) for progress tracking across the device.
+model Student {
+  id        String   @id @default(cuid())
+  name      String
+  level     String   @default("Undergraduate")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attempts  QuizAttempt[]
+}
+
+/// One quiz sitting.
+model QuizAttempt {
+  id            String    @id @default(cuid())
+  studentId     String?
+  sectionId     String?
+  studentKey    String    /// stable per-device key when no Student row
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  score         Int       @default(0)   /// number correct
+  totalQuestions Int      @default(0)
+  durationSec   Int       @default(0)
+  questionIds   String    /// JSON: string[]
+  createdAt     DateTime  @default(now())
+
+  student  Student?      @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  section  Section?      @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  answers  QuizAnswer[]
+
+  @@index([studentId])
+  @@index([sectionId])
+}
+
+/// A single answered question inside an attempt.
+model QuizAnswer {
+  id            String   @id @default(cuid())
+  attemptId     String
+  questionId    String
+  selectedOptionId String? /// null => skipped / timed-out
+  isCorrect     Boolean  @default(false)
+  timeSpentSec  Int      @default(0)
+
+  attempt   QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question  Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+}
