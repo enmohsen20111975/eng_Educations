@@ -1124,3 +1124,119 @@ Next actions for follow-up agents:
 - When loadReference() is wired into a seed route, ensure the Six Sigma
   certification is grouped with other Quality-track certifications (no
   ISO standard row expected — different from CRE/CMRP/PMP which link one).
+
+---
+Task ID: 16-CAMA
+Agent: general-purpose
+Task: Author the CAMA (Certified Asset Management Assessor) certification structure + a DEEP scientific reference for its ISO 55001 Asset Management Principles pillar (full 24-section lessons + KOs + 12 questions + 6 sources).
+
+Work Log:
+- Read shared worklog and the CANONICAL pattern src/lib/ref-content/cre.ts
+  (combined structure + content loader in one loadReference() — to mirror
+  exactly). Read src/lib/spec.ts (24 LESSON_TEMPLATE keys + 16 KO_FIELDS +
+  source-level table + cognitive levels + INDUSTRY_CONTEXTS) and the
+  prisma/schema.prisma (Certification, CertificationVersion, Standard,
+  CertificationStandard, Domain, Competency, Lesson, KnowledgeObject,
+  Question, QuestionOption, Reference, LearningPath). Verified the
+  3-ISO-standard linking pattern from src/lib/ref-content/cmrp.ts
+  (CMRP_STANDARDS array → upsert by slug → CertificationStandard upsert).
+- Authored /home/z/my-project/src/lib/ref-content/cama.ts (single combined
+  loader, ~1650 lines). Mirrors cre.ts layout: (A) CAMA STRUCTURE — 4
+  ISO-55001-clause-aligned domains + AMP competencies; (B) DEEP CONTENT —
+  3 full-spec 24-section lessons + KOs + 12 enriched questions.
+
+CAMA structure (4 domains):
+1) AMP — Asset Management Principles & Policy (4 competencies)
+2) AMS — Asset Management System (ISO 55001)
+3) AML — Asset Management Plan & Lifecycle
+4) PI  — Performance & Improvement
+
+AMP competencies (4): "Asset Management Principles", "Asset Management
+Policy & Strategy", "Asset Management Objectives & SAMP", "Leadership &
+Commitment". Other 3 domains are structure-only (no competencies) in
+this loader, mirroring CRE's structure-only PS/RDD/RM/RT/RPO/ML domains.
+
+3 ISO standards linked via CertificationStandard upsert (findFirst by
+slug → upsert CertificationStandard; mirrors cre.ts):
+- iso-55000 (ISO 55000:2014 — Overview, principles and terminology)
+- iso-55001 (ISO 55001:2014 — Management systems — Requirements)
+- iso-55002 (ISO 55002:2018 — Guidelines for the application of ISO 55001)
+
+Certification snapshot: slug "cama", name "CAMA", fullName "Certified
+Asset Management Assessor", body "IFANM/World Partners", currentVersion
+"2024", group "Maintenance & Reliability", color "emerald", icon
+"Award", order 5. CertificationVersion v2024 + LearningPath "cama-path".
+
+3 deep lessons (AMP pillar, all 24 sections, ~800-1100 words each):
+1) cama-asset-management-principles — competency "Asset Management
+   Principles" — 7 ISO 55000 principles (value, alignment, leadership,
+   assurance + asset, asset management, asset management system
+   definitions), asset lifecycle stages (creation/acquisition,
+   utilization, maintenance, renewal/disposal), LCC formula calculation
+   worked example, maturity self-assessment scorecard.
+2) cama-policy-and-strategy — competency "Asset Management Policy &
+   Strategy" — ISO 55001 5.2 policy requirements, SAMP, alignment with
+   organizational objectives, policy statement worked example for a
+   water utility.
+3) cama-objectives-and-samp — competency "Asset Management Objectives &
+   SAMP" — ISO 55001 6.2 objectives, SMART criteria, SAMP structure,
+   cascading objectives with a SMART cascade calculation.
+
+References (6, real, no invention):
+- ISO 55000:2014 (L2 STANDARD)
+- ISO 55001:2014 (L2 STANDARD)
+- ISO 55002:2018 (L2 STANDARD)
+- The IAM "Asset Management — An Anatomy" (L5 BOOK)
+- The IAM "Asset Management Maturity Model" (L5 BOOK)
+- John D. Campbell & Andrew K.S. Jardine "Maintenance Strategy" (L7 BOOK)
+
+Knowledge Objects: one per lesson, body fields populated (definitions,
+principles, components, mechanism, process, formulas, metrics,
+examples, industrial_examples, case_studies, common_errors,
+limitations, best_practices, related_concepts, prerequisites,
+references).
+
+Questions: 12 total (4 per lesson = 3 MCQ + 1 TrueFalse). Each
+enriched with whyCorrect + whyOthersWrong[] + cognitiveLevel +
+explanation. Scenarios: Utilities (water utility), Oil & Gas (refinery
+pump), Power (transmission utility).
+
+Loader flow (mirrors cre.ts exactly):
+1) upsert Certification (slug "cama", group "Maintenance & Reliability");
+2) delete+recreate 4 domains + AMP competencies (other 3 domains are
+   structure-only);
+3) link 3 ISO standards via findFirst by slug → upsert
+   CertificationStandard;
+4) CertificationVersion v2024 + LearningPath "cama-path";
+5) upsert References globally (by title);
+6) per lesson: findFirst({competencyId, slug}) → update/create
+   (sectionId=null, certificationId, competencyId, READY/HIGH/VERIFIED/
+   v1.0.0, sections JSON, referenceIds JSON);
+7) per lesson: findFirst KO by lessonId → update/create;
+8) per competency: deleteMany questions({certificationId, competencyId})
+   → create enriched questions with nested QuestionOption records;
+9) returns counts {certification, domains:4, competencies:4, standards:3,
+   versions:1, learningPath, lessons:3, kos:3, questions:12, references:6}.
+
+Verification: TypeScript full-project check (npx tsc --noEmit) — 0 errors
+in cama.ts. ESLint on cama.ts — exit 0 (clean). All 24 sections present
+in each of the 3 lessons (verified by grep on section keys). 4 questions
+per lesson (3 MCQ + 1 TF) verified by grep on type field.
+
+Next actions for follow-up agents:
+- Author AMS (Asset Management System) pillar deep content — competencies
+  for ISO 55001 clauses 4-10 (Context, Leadership, Planning, Support,
+  Operation, Performance evaluation, Improvement).
+- Author AML (Asset Management Plan & Lifecycle) pillar deep content —
+  competencies for AMP development, lifecycle stages, LCC, risk
+  assessment, resilience.
+- Author PI (Performance & Improvement) pillar deep content —
+  competencies for performance monitoring, internal audit, management
+  review, CAPA, continual improvement.
+- Add remaining AMP competency "Leadership & Commitment" deep lesson
+  (this loader creates the competency but defers its lesson).
+- Clear the REQUIRES_RESEARCH flag in examBlueprint once the official
+  IFANM/World Partners CAMA exam blueprint (per-domain % weights, exam
+  duration, question count, passing score) is verified in-platform.
+- Wire loadReference() into the seed route alongside cre.ts, cmrp.ts,
+  pmp.ts, six-sigma.ts.
