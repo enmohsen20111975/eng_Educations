@@ -1240,3 +1240,187 @@ Next actions for follow-up agents:
   duration, question count, passing score) is verified in-platform.
 - Wire loadReference() into the seed route alongside cre.ts, cmrp.ts,
   pmp.ts, six-sigma.ts.
+
+---
+Task ID: 17-CRE-RM
+Agent: general-purpose
+Task: Author the CRE Reliability Modeling (RM) pillar — deep scientific
+reference (4 full-spec 24-section lessons, Knowledge Objects, 16 enriched
+questions, 6 real sources). CONTENT-only loader — competencies created
+inside loadReference() since the RM domain exists in cre.ts with no
+competencies yet.
+
+Plan:
+- Mirror cmrp-equipment-reliability.ts (content-only loader pattern) for
+  loadReference() flow: find CRE cert (slug "cre") + RM domain (code "RM")
+  by certificationId; delete existing RM competencies; create 4
+  competencies ("Reliability Block Diagrams (RBD)", "Fault Tree Analysis
+  (FTA)", "Redundancy & Voting (MooN)", "Markov & State-Transition
+  Models"); map by NAME→id; upsert References (6) by title globally; per
+  lesson findFirst({competencyId, slug}) update/create; upsert KO per
+  lesson by lessonId; deleteMany questions {certificationId,
+  competencyId} then create 4 enriched questions per lesson (16 total).
+
+Deliverable: /home/z/my-project/src/lib/ref-content/cre-reliability-modeling.ts
+
+Work Log:
+- Read /home/z/my-project/worklog.md (briefly).
+- Read /home/z/my-project/src/lib/ref-content/cmrp-equipment-reliability.ts
+  (CANONICAL pattern for CONTENT-only loader; RefLesson/RefQuestion/
+  RefSource interfaces, loadReference() flow).
+- Read /home/z/my-project/src/lib/ref-content/cre.ts (combined structure
+  + RF content loader; CRE certification + 7 BOK domains + RF competencies
+  present; RM domain exists with NO competencies — must be created inside
+  loadReference()).
+- Read /home/z/my-project/src/lib/spec.ts (24 keys in LESSON_TEMPLATE +
+  16 keys in KO_FIELDS + SOURCE_LEVELS + INDUSTRY_CONTEXTS +
+  COGNITIVE_LEVELS).
+- Read /home/z/my-project/prisma/schema.prisma (Lesson, Question,
+  QuestionOption, KnowledgeObject, Reference, Certification, Domain,
+  Competency models).
+- Authored /home/z/my-project/src/lib/ref-content/cre-reliability-modeling.ts
+  (~2,253 lines). CONTENT-only loader mirroring cmrp-equipment-reliability.ts,
+  with the additional step of creating the 4 RM competencies inside
+  loadReference() (RM domain exists in cre.ts with NO competencies).
+
+Deliverable — file structure:
+- Header comment (Task ID 17-CRE-RM, source hierarchy, originality, lifecycle).
+- Public types: RefOption, RefQuestion, RefLesson, RefSource (mirror cre.ts).
+- CRE_RM_SOURCES (6 real references, no invention):
+  1. ASQ CRE BOK — Reliability Modeling domain (L3 BOK).
+  2. ISO 14224:2016 (L2 STANDARD) — failure-data source for model inputs.
+  3. Ebeling — An Introduction to Reliability and Maintainability Engineering
+     (L6 BOOK) — Ch. 6 (RBD), Ch. 9 (Markov).
+  4. O'Connor — Practical Reliability Engineering (L7 BOOK) — Ch. 6-9.
+  5. Smith — Reliability, Maintainability and Risk (L7 BOOK) — Ch. 8-11.
+  6. Jardine & Tsang — Maintenance, Replacement, and Reliability (L6 BOOK)
+     — Ch. 4, 9.
+- 4 lessons (full 24-section spec each):
+  1. LESSON_RBD — Reliability Block Diagrams (RBD); slug:
+     rm-reliability-block-diagrams; competency: "Reliability Block
+     Diagrams (RBD)". Worked example: 3-pump series skid R=0.9217,
+     parallel pair upgrade R=0.9688, 2oo3 voting R=0.999702, minimal cut
+     sets (rare-event approx Q_sys≈ΣQ_i), bridge network inclusion-exclusion.
+     Industrial example: subsea production system (Oil & Gas). Case study:
+     petrochemical ESD system (synthetic).
+  2. LESSON_FTA — Fault Tree Analysis (FTA); slug: rm-fault-tree-analysis;
+     competency: "Fault Tree Analysis (FTA)". Worked example: nuclear
+     LOCA top event with cut sets {A,B} and {C}; rare-event P_top≈5.2e-3;
+     Fussell-Vesely I_C^FV=96.15% (surge valve dominates); RAW I_A^RAW=
+     4.79; inclusion-exclusion for high-P_i. Industrial example: nuclear
+     safety-injection system (Power). Case study: petrochemical flare
+     system (synthetic).
+  3. LESSON_MOON — Redundancy & Voting (MooN); slug:
+     rm-redundancy-voting-moon; competency: "Redundancy & Voting (MooN)".
+     Worked example: 2oo3 SIS R_single=0.99005, R_2oo3=0.99981 (no CCF),
+     R_2oo3^CCF=0.999249 (β=0.05), cold standby with imperfect switching
+     R_sw=0.995, steady-state A_2oo3=0.9997. Industrial example:
+     electrical protection relay (Power). Case study: chemical reactor ESD
+     SIL verification (synthetic).
+  4. LESSON_MARKOV — Markov & State-Transition Models; slug:
+     rm-markov-state-transition; competency: "Markov & State-Transition
+     Models". Worked example: 2-state repairable A_ss=μ/(λ+μ)=0.990099;
+     2-pump parallel Markov 3-state A_ss≈0.99892; multi-state with
+     degraded; Monte-Carlo for 5-channel 3oo5 with 95% CI. Industrial
+     example: CCGT feedwater system (Power). Case study: 2-pump cooling
+     water with reduced repair crew (synthetic).
+- 4 Knowledge Objects (one per lesson) with applicable body arrays:
+  definitions, principles, components, mechanism, process, formulas,
+  metrics, examples, industrial_examples, case_studies, common_errors,
+  limitations, best_practices, related_concepts, prerequisites,
+  references.
+- 4 enriched questions per lesson (16 total: 12 MCQ + 4 TrueFalse) with
+  whyCorrect + whyOthersWrong[] (one per distractor for MCQ, one for TF) +
+  cognitiveLevel + explanation + skillType + scenario (Oil & Gas / Power /
+  Chemical). Mix of Easy/Medium/Hard × Remember/Understand/Apply/Analyze
+  × Recall/Understanding/Application/Analysis/Calculation.
+- CRE_RM_COMPETENCIES (4 names matching CRE_RM_LESSONS competencyName):
+  Reliability Block Diagrams (RBD), Fault Tree Analysis (FTA),
+  Redundancy & Voting (MooN), Markov & State-Transition Models.
+- loadReference() flow (CONTENT-only, mirrors cmrp-equipment-
+  reliability.ts + competency creation step):
+  1. db.certification.findUnique({where:{slug:"cre"}}); throw if missing.
+  2. db.domain.findFirst({where:{certificationId, code:"RM"}}); throw if
+     missing.
+  3. db.competency.deleteMany({where:{domainId:rmDomain.id}}); create 4
+     RM competencies from CRE_RM_COMPETENCIES; map by NAME→id; validate
+     all 4 lesson.competencyName exist.
+  4. Upsert 6 References globally by title (findFirst by title; update or
+     create; build sharedReferenceIds JSON).
+  5. For each lesson: findFirst({competencyId, slug}) update/create with
+     sectionId=null, certificationId, competencyId, status READY/HIGH/
+     VERIFIED/v1.0.0, lastReviewedAt=now, sections JSON, referenceIds
+     JSON (shared).
+  6. Upsert KO per lesson: findFirst by lessonId; update or create with
+     certificationId, domainId (RM), competencyId, body JSON,
+     referenceIds (JSON shared), certificationIds (JSON [cre.id]),
+     READY/HIGH/VERIFIED/v1.0.0.
+  7. Per competency: deleteMany questions({certificationId,
+     competencyId}); create each enriched question with nested
+     QuestionOption records, knowledgeObjectId, whyCorrect,
+     whyOthersWrong (JSON), referenceIds (JSON shared), READY/VERIFIED/
+     PENDING/v1.0.0.
+  8. Return { certification, domain, competencies, lessons, kos,
+     questions, references } counts.
+
+Verification:
+- TypeScript full-project check (npx tsc --noEmit): 0 errors in
+  cre-reliability-modeling.ts (errors in unrelated files in the project
+  exist — examples/websocket/, skills/, src/components/admin/, etc. —
+  not from this loader).
+- ESLint on cre-reliability-modeling.ts: exit 0 (clean, no warnings).
+- All 24 sections present in each of the 4 lessons (verified by node
+  script).
+- 16 questions total (12 MCQ + 4 TF, 4 per lesson) verified by grep.
+- 6 sources in CRE_RM_SOURCES verified.
+- Competency names match between CRE_RM_COMPETENCIES and CRE_RM_LESSONS
+  competencyName (all 4 match, NONE missing).
+- Worked examples include all required numerical problems:
+  • Series R=R1×R2×R3 (=0.9217).
+  • Parallel A=1-(1-A1)(1-A2) (=0.9975).
+  • 2oo3 voting availability 3A²-2A³ (=0.999702).
+  • FTA minimal cut set probability (rare-event 5.2e-3; inclusion-
+    exclusion).
+  • β-factor CCF (R_2oo3^CCF = R_MooN^indep · exp(-β·λ·t) = 0.999249).
+  • Markov steady-state availability λ/(λ+μ) → μ/(λ+μ) (=0.990099).
+  • MTBF=1/λ shown in industrial examples.
+- formula_calculation lists R_series=∏R_i, A_parallel=1-∏(1-A_i),
+  A_MooN=Σ(...), β-factor, P_ss=μ/(λ+μ), MTBF=1/λ with variables/units/
+  assumptions/interpretation.
+- industrial_example named industry per lesson: Oil & Gas (subsea), Power
+  (nuclear, electrical protection, CCGT), Chemical (reactor ESD).
+- case_study synthetic, marked CASE_TYPE = SYNTHETIC.
+- common_mistakes real; references citations.
+
+Counts:
+- Lines: 2,253.
+- Lessons: 4 (slugs: rm-reliability-block-diagrams,
+  rm-fault-tree-analysis, rm-redundancy-voting-moon,
+  rm-markov-state-transition).
+- KnowledgeObjects: 4 (one per lesson).
+- Questions: 16 (4 per lesson; 12 MCQ + 4 TrueFalse).
+- References: 6 (CRE_RM_SOURCES).
+- Competencies created: 4 (deleted any stale RM competencies first,
+  then created inside loadReference()).
+
+Next actions for follow-up agents:
+- Wire cre-reliability-modeling.ts loadReference() into the seed route
+  alongside cre.ts (call cre.ts first to ensure the CRE certification
+  and RM domain exist, then cre-reliability-modeling.ts to seed the 4 RM
+  competencies + content). The CRE structure+RF-content loader (cre.ts)
+  wipes ALL competencies+domains on each run — re-running cre.ts after
+  cre-reliability-modeling.ts would WIPE the 4 RM competencies and the
+  RM lessons. Recommended approach: (i) call cre.ts once (creates 7
+  domains + 4 RF competencies + RF content); (ii) call cre-reliability-
+  modeling.ts (creates 4 RM competencies + RM content). Or merge this
+  loader's RM-competency creation + content into cre.ts directly.
+- Author the remaining CRE pillars' deep content: PS (Probability &
+  Statistics), RDD (Reliability in Design & Development), RT (Reliability
+  Testing), RPO (Reliability in Production & Operations), ML (Maintenance
+  & Logistics) — same pattern as cre-reliability-modeling.ts.
+- Clear the REQUIRES_RESEARCH flag in CRE examBlueprint once the official
+  ASQ CRE per-domain % weights are verified in-platform.
+- Verify the RM-competency creation step does not collide with cre.ts's
+  competency wipe on subsequent re-runs — see "Recommended approach"
+  above.
+
