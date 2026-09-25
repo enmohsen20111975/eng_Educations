@@ -92,11 +92,10 @@ export const api = {
   upsertMatrixCell: (data: Partial<MatrixCell>) => apiPost<MatrixCell>("/api/matrix", data),
 
   tracker: () => apiGet<TrackerSummary>("/api/tracker"),
+  certifications: () =>
+    apiGet<any[]>("/api/certifications"),
   loadReferenceContent: (sectionSlug: string) =>
-    apiPost<{ lessons: number; kos: number; questions: number; references: number }>(
-      "/api/admin/load-reference",
-      { sectionSlug },
-    ),
+    apiPost<any>("/api/admin/load-reference", { sectionSlug }),
 
   references: (sectionId: string) =>
     apiGet<Reference[]>(`/api/references?sectionId=${sectionId}`),

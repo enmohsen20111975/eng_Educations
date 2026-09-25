@@ -1,6 +1,19 @@
-// Engineer's Educations — Prisma schema (v2: data-collector engine support)
-// Adds: KnowledgeObject, Reference (source hierarchy), structured 24-section
-// lessons, status/version/confidence/verification fields, question enrichment.
+// =============================================================================
+// Engineer's Educations — Knowledge-Driven Learning Platform
+// Full Knowledge Model schema (data-collector engine + certification graph)
+// =============================================================================
+// Design principle (spec §29): separate CONTENT / KNOWLEDGE / PRESENTATION /
+// ASSESSMENT / SIMULATION / USER DATA. The DB is the source of truth; templates
+// render it; AI generates/transforms but never invents (spec §19).
+//
+// Organizational axes:
+//   (A) General engineering track:  Section 1—* Lesson 1—* Question
+//   (B) Certification track:         Certification 1—* Domain 1—* Competency
+//                                    1—* (Module) 1—* Lesson ; questions link
+//                                    to Certification/Domain/Competency/Concept.
+// A Lesson may belong to either axis (sectionId OR competencyId), enabling one
+// engine to serve both general disciplines and certification BOKs.
+// =============================================================================
 
 generator client {
   provider = "prisma-client-js"
@@ -11,24 +24,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Lifecycle / verification status shared by Lessons, Questions, KnowledgeObjects.
-/// DRAFT = generated but not validated · REQUIRES_RESEARCH = gap, no source yet ·
-/// NOT_READY = failed a quality gate · READY = passed all gates ·
-/// HUMAN_REVIEW_REQUIRED = unresolved source conflict / judgment needed.
-model ContentStatus {
-  id    String @id
-  count Int    @default(0)
-}
+// =============================================================================
+// (A) GENERAL ENGINEERING TRACK  —  Section / Lesson / Question
+// =============================================================================
 
-/// An engineering discipline / chapter (target: 23 sections).
 model Section {
   id          String   @id @default(cuid())
   slug        String   @unique
   title       String
   titleAr     String?
   description String
-  icon        String // lucide icon name
-  color       String // tailwind accent
+  icon        String
+  color       String
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -41,90 +48,111 @@ model Section {
   references  Reference[]
 }
 
-/// A lesson inside a section. v2: supports the full 24-section data-collector
-/// template via `sections` (Json), plus lifecycle metadata. The legacy fields
-/// (conceptIntroduction/example/keyFormulas/exercise) remain for backward-compat
-/// with DRAFT lessons that have not yet been upgraded to the full template.
 model Lesson {
   id                  String   @id @default(cuid())
-  sectionId           String
+  // primary axis (one of):
+  sectionId           String?            // general-engineering track
+  certificationId     String?            // certification track
+  competencyId       String?            // certification track
+  moduleId           String?            // optional module grouping
   slug                String
   title               String
   titleAr             String?
   order               Int      @default(0)
 
   // ---- Legacy (abbreviated) content, kept for DRAFT lessons ----
-  conceptIntroduction String
+  conceptIntroduction String     @default("")
   example             String?
   keyFormulas         String?
   exercise            String?
   durationMin         Int      @default(15)
 
-  // ---- v2: full 24-section data-collector template ----
-  /// Json object keyed by the 24 template sections; each value is a string or
-  /// "NOT_APPLICABLE". Null when the lesson has not been upgraded yet.
-  sections            String?  // JSON string (SQLite Json stored as TEXT)
-  /// Json array of Reference ids supporting this lesson.
-  referenceIds        String?  // JSON string
+  // ---- Full 24-section data-collector template (JSON) ----
+  sections            String?  // JSON: { learning_objectives, ..., references }
+  referenceIds        String?  // JSON string[] of Reference ids
+  // cross-cert reuse indicator
+  sharedAcrossCerts   Boolean  @default(false)
 
-  // ---- v2: lifecycle metadata ----
+  // ---- Lifecycle metadata ----
   status              String   @default("DRAFT") // DRAFT|REQUIRES_RESEARCH|NOT_READY|READY|HUMAN_REVIEW_REQUIRED
   version             String   @default("0.1.0")
   confidence          String   @default("LOW")   // LOW|MEDIUM|HIGH
   verificationStatus   String   @default("PENDING") // PENDING|VERIFIED|FAILED|HUMAN_REVIEW_REQUIRED
   lastReviewedAt      DateTime?
+  qualityScore        Float    @default(0) // 0..100 (spec §21)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  section   Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  questions Question[]
+  section          Section?          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  certification    Certification?    @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  competency       Competency?       @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  module           Module?           @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  questions        Question[]
   knowledgeObjects KnowledgeObject[]
+  visualSpecs      VisualSpec[]
+  learningPathSteps LearningPathStep[]
 
   @@unique([sectionId, slug])
   @@index([sectionId])
+  @@index([competencyId])
+  @@index([certificationId])
   @@index([status])
 }
 
-/// A Question in the bank. v2: enriched per the data-collector Question Engine:
-/// why_correct, why_others_wrong, cognitive_level, source_refs, KO link,
-/// lifecycle status.
 model Question {
   id           String   @id @default(cuid())
-  sectionId    String
+  // primary axis (one of):
+  sectionId    String?
+  certificationId String?
+  domainId     String?
+  competencyId String?
   lessonId     String?
-  type         String   // "MultipleChoice" | "TrueFalse"
-  difficulty   String   // "Easy" | "Medium" | "Hard"
-  bloomLevel   String   // "Remember" | "Understand" | "Apply" | "Analyze"
-  cognitiveLevel String? // "Recall|Understanding|Application|Analysis|Evaluation|Calculation|Scenario|DecisionMaking"
+  knowledgeObjectId String?  // concept link (§23 cross-cert reuse)
+
+  type         String   // MCQ | MultipleResponse | TrueFalse | Matching | Calculation | Scenario | CaseStudy | Ordering | Diagnostic | DecisionMaking | ImageBased | DiagramBased | SimulationBased | OralInterview
+  difficulty   String   // Easy | Medium | Hard
+  bloomLevel   String   // Remember | Understand | Apply | Analyze
+  cognitiveLevel String? // Recall | Understanding | Application | Analysis | Evaluation | Calculation | Scenario | DecisionMaking
   skillType    String?
+  scenario     String?  // Manufacturing | Oil & Gas | Power | Mining | Automotive | Chemical | Healthcare | ContainerTerminal | Utilities | Construction | IT | Services
+  industry     String?
+  language     String   @default("en")
+  tags         String?  // JSON string[]
+
   stem         String
   explanation  String?
-  // v2 enrichment
-  whyCorrect        String?  // why the correct answer is correct
-  whyOthersWrong    String?  // JSON string[] — why each distractor is wrong
-  referenceIds      String?  // JSON string[] of Reference ids
-  knowledgeObjectId String?
+  // enrichment (§7, §16)
+  whyCorrect        String?
+  whyOthersWrong    String?  // JSON string[]
+  referenceIds      String?  // JSON string[]
+
+  // lifecycle
   status            String   @default("DRAFT")
   verificationStatus String  @default("PENDING")
+  reviewStatus      String   @default("PENDING") // PENDING | REVIEWED | REJECTED | APPROVED
   version           String   @default("0.1.0")
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  section   Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  lesson    Lesson?         @relation(fields: [lessonId], references: [id], onDelete: SetNull)
-  options   QuestionOption[]
-  attempts  QuizAnswer[]
+  section   Section?         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  certification Certification? @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  domain     Domain?         @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  competency Competency?     @relation(fields: [competencyId], references: [id], onDelete: SetNull)
+  lesson     Lesson?         @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  options    QuestionOption[]
+  attempts   QuizAnswer[]
   knowledgeObject KnowledgeObject? @relation(fields: [knowledgeObjectId], references: [id], onDelete: SetNull)
 
   @@index([sectionId])
-  @@index([sectionId, difficulty])
+  @@index([certificationId])
+  @@index([domainId])
+  @@index([competencyId])
   @@index([lessonId])
   @@index([status])
 }
 
-/// One option of a multiple-choice / true-false question.
 model QuestionOption {
   id          String   @id @default(cuid())
   questionId  String
@@ -135,7 +163,7 @@ model QuestionOption {
   @@index([questionId])
 }
 
-/// A target cell of the Generation Matrix.
+// General-track generation matrix (kept for the 23 disciplines)
 model GenerationMatrixCell {
   id           String   @id @default(cuid())
   sectionId    String
@@ -150,86 +178,419 @@ model GenerationMatrixCell {
   @@index([sectionId])
 }
 
-/// A Knowledge Object — the structured, source-backed unit of knowledge per the
-/// data-collector spec §7. `body` holds the full JSON structure (definitions,
-/// principles, components, mechanism, process, formulas, metrics, examples,
-/// industrial_examples, case_studies, common_errors, limitations, best_practices,
-/// related_concepts, prerequisites, references). Lifecycle metadata kept top-level.
+// =============================================================================
+// (B) CERTIFICATION KNOWLEDGE GRAPH  (§1, §2, §6, §10)
+// =============================================================================
+
+model Certification {
+  id              String   @id @default(cuid())
+  slug            String   @unique            // cmrp, cre, cama, pmp, six-sigma, ...
+  name            String                       // CMRP
+  fullName        String                       // Certified Maintenance & Reliability Professional
+  body            String                       // SMRP | ASQ | PMI | IATF | ISO | ...
+  currentVersion  String   @default("1.0.0")   // §10 versioning
+  bokReference    String?                      // Body of Knowledge reference (URL/doc)
+  examBlueprint   String?                      // JSON: domain weights, counts, duration, passing score
+  effectiveDate   DateTime?
+  description     String
+  color           String   @default("emerald")
+  icon            String   @default("Award")
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  domains         Domain[]
+  versions        CertificationVersion[]
+  exams           Exam[]
+  learningPaths   LearningPath[]
+  matrixCells     CertificationMatrixCell[]
+  standards       CertificationStandard[]
+  lessons         Lesson[]
+  questions       Question[]
+  knowledgeObjects KnowledgeObject[]
+  attempts        QuizAttempt[]
+}
+
+/// A snapshot of the BOK for a given certification version (§10 — never delete old).
+model CertificationVersion {
+  id              String   @id @default(cuid())
+  certificationId String
+  version         String                     // "2024", "2025"
+  effectiveDate   DateTime
+  bokSnapshot     String                     // JSON: domains/competencies at that version
+  changeLog       String?
+  createdAt       DateTime @default(now())
+  certification   Certification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  @@unique([certificationId, version])
+  @@index([certificationId])
+}
+
+/// An official standard (ISO 55000/55001/55002, etc.) — linked many-to-many to certifications.
+model Standard {
+  id            String   @id @default(cuid())
+  slug          String   @unique            // iso-55000, iso-55001
+  name          String                       // ISO 55000
+  organization  String                       // ISO | IEC | ...
+  number        String                       // 55000
+  version       String?                      // 2014
+  description   String
+  createdAt     DateTime @default(now())
+  certifications CertificationStandard[]
+}
+
+model CertificationStandard {
+  certificationId String
+  standardId      String
+  certification   Certification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  standard        Standard      @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  @@id([certificationId, standardId])
+}
+
+/// A domain within a certification BOK (CMRP has 5 official domains).
+model Domain {
+  id              String   @id @default(cuid())
+  certificationId String
+  name            String
+  code            String?                       // "B&M", "MPR", "ER", "OL", "WM"
+  weight          Float    @default(0)          // exam weight %
+  order           Int      @default(0)
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  certification   Certification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  competencies    Competency[]
+  questions       Question[]
+  knowledgeObjects KnowledgeObject[]
+  @@unique([certificationId, code])
+  @@index([certificationId])
+}
+
+model Competency {
+  id          String   @id @default(cuid())
+  domainId    String
+  name        String
+  code        String?
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  domain      Domain   @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  modules     Module[]
+  lessons     Lesson[]
+  questions   Question[]
+  knowledgeObjects KnowledgeObject[]
+  @@index([domainId])
+}
+
+model Module {
+  id            String   @id @default(cuid())
+  competencyId  String
+  name          String
+  order         Int      @default(0)
+  description   String?
+  competency    Competency @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  lessons       Lesson[]
+  @@index([competencyId])
+}
+
+// =============================================================================
+// (C) REUSABLE KNOWLEDGE  —  KnowledgeObject (§7), Glossary (§24), graph nodes
+// =============================================================================
+
+/// A structured, source-backed concept unit (§7). One KO can be reused across
+/// certifications (§23) via `certificationIds` JSON; `body` holds the full KO JSON.
 model KnowledgeObject {
   id        String   @id @default(cuid())
-  sectionId String
+  sectionId String?                       // general track
+  certificationId String?                  // cert track primary
+  domainId  String?
+  competencyId String?
   lessonId  String?
   title     String
   domain    String?
   competency String?
   topic     String?
   concept   String?
-  body      String   // JSON string — the full KO structure
+  body      String   // JSON: definitions/principles/components/mechanism/process/formulas/metrics/examples/industrial_examples/case_studies/common_errors/limitations/best_practices/related_concepts/prerequisites/references
   version   String   @default("0.1.0")
-  confidence String  @default("LOW") // LOW|MEDIUM|HIGH
-  verificationStatus String @default("PENDING") // PENDING|VERIFIED|FAILED|HUMAN_REVIEW_REQUIRED
+  confidence String  @default("LOW")
+  verificationStatus String @default("PENDING")
   status    String   @default("DRAFT")
-  referenceIds String? // JSON string[]
+  referenceIds String?           // JSON string[]
+  certificationIds String?        // JSON string[] — cross-cert reuse (§23)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  section  Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  lesson   Lesson?  @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  section   Section?  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  certification Certification? @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  domainRef Domain? @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  competencyRef Competency? @relation(fields: [competencyId], references: [id], onDelete: SetNull)
+  lesson    Lesson?  @relation(fields: [lessonId], references: [id], onDelete: SetNull)
   questions Question[]
+  formulas  Formula[]
+  visualSpecs VisualSpec[]
 
   @@index([sectionId])
+  @@index([certificationId])
   @@index([lessonId])
   @@index([status])
 }
 
-/// A source / reference following the source hierarchy (§5). Level 1 = official
-/// certification body … Level 9 = secondary educational sources. Linked to
-/// lessons, questions, knowledge objects via their `referenceIds` JSON arrays.
-model Reference {
-  id        String   @id @default(cuid())
-  sectionId String?
-  title     String
-  level     String   // "1".."9"
-  levelLabel String  // e.g. "Official Certification Body"
-  type      String   // BOOK|STANDARD|HANDBOOK|PAPER|WEBSITE|...
-  url       String?
-  citation  String
-  createdAt DateTime @default(now())
-  section   Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  @@index([sectionId])
+/// Global technical dictionary (§24) — cross-linked, clickable in any lesson.
+model Term {
+  id          String   @id @default(cuid())
+  term        String   @unique                  // MTBF, OEE, FMEA
+  definition  String
+  formula     String?
+  units       String?
+  relatedTerms String?                          // JSON string[] of term names/ids
+  referenceIds String?                          // JSON string[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-/// A local learner (no auth) for progress tracking across the device.
+/// A formula bound to a Knowledge Object (variables/units/assumptions/interpretation).
+model Formula {
+  id           String   @id @default(cuid())
+  knowledgeObjectId String?
+  name         String
+  expression   String                  // "A = MTBF / (MTBF + MTTR)"
+  variables    String                  // JSON [{name, symbol, units, description}]
+  units        String?
+  assumptions  String?
+  interpretation String?
+  referenceIds String?                 // JSON string[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  knowledgeObject KnowledgeObject? @relation(fields: [knowledgeObjectId], references: [id], onDelete: SetNull)
+  @@index([knowledgeObjectId])
+}
+
+/// A metric / KPI (MTBF, MTTR, OEE, Availability, MTTA, ...).
+model Metric {
+  id          String   @id @default(cuid())
+  name        String
+  symbol      String?
+  formula     String?
+  units       String?
+  target      String?                  // "> 90%"
+  category    String                   // KPI | Reliability | Maintenance | Asset | Quality
+  description String?
+  referenceIds String?                 // JSON string[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Equipment types & their failure modes (§6 graph: Equipment → FailureMode).
+model Equipment {
+  id          String   @id @default(cuid())
+  name        String                   // Centrifugal Pump, Induction Motor, Compressor
+  category    String                   // pump | motor | compressor | heat exchanger | valve
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  failureModes FailureMode[]
+}
+
+model FailureMode {
+  id          String   @id @default(cuid())
+  equipmentId String?
+  name        String                   // Seal leakage, Bearing failure
+  description String?
+  causes      String?                  // JSON string[]
+  symptoms    String?                  // JSON string[]
+  mitigation  String?
+  rpnDefault  Int?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([equipmentId])
+}
+
+/// A methodology (RCM, TPM, FMEA, FMECA, RCA, Weibull, DMAIC, DMADV, SIPOC, VSM).
+model Method {
+  id          String   @id @default(cuid())
+  slug        String   @unique         // rcm, tpm, fmea, rca, weibull, dmaic
+  name        String
+  category    String                   // Maintenance | Reliability | Quality | Project
+  description String?
+  steps       String?                  // JSON string[]
+  referenceIds String?                 // JSON string[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Tool {
+  id          String   @id @default(cuid())
+  name        String                   // CMMS, EAM, Vibration Analyzer, Ultrasonic
+  category    String                   // CMMS | EAM | Diagnostic | Hand | Software
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// =============================================================================
+// (D) CONTENT ARTIFACTS  —  Visuals (§13), Simulations (§14-15), Cases (§16)
+// =============================================================================
+
+/// A visual specification bound to a lesson/concept (spec §13). `spec` JSON
+/// describes the diagram (type, nodes/edges/data) so a renderer can draw it.
+model VisualSpec {
+  id          String   @id @default(cuid())
+  lessonId    String?
+  knowledgeObjectId String?
+  type        String   // Process Flow | Decision Tree | Fishbone | Pareto | Control Chart | Weibull Plot | Reliability Block Diagram | FMEA Matrix | Risk Matrix | Gantt | Network Diagram | SIPOC | Value Stream Map | Bow-Tie | Fault Tree | DMAIC Flow | Asset Lifecycle | P&ID | Equipment Schematic
+  title       String
+  spec        String   // JSON diagram spec
+  status      String   @default("DRAFT")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lesson       Lesson?         @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  knowledgeObject KnowledgeObject? @relation(fields: [knowledgeObjectId], references: [id], onDelete: Cascade)
+  @@index([lessonId])
+}
+
+/// An interactive simulation spec (§14-15): inputs → engine → calc → viz → interpretation.
+model Simulation {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  category    String   // Reliability | Maintenance | SixSigma | ProjectManagement | AssetManagement
+  description String?
+  inputs      String   // JSON [{name, symbol, units, default, min, max}]
+  engine      String?  // function/formula name
+  calculation String   // JSON equations/logic
+  visualization String // JSON chart type + data mapping
+  interpretation String?
+  learningObjective String?
+  status      String   @default("DRAFT")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// A case study (§16) — synthetic unless explicitly REAL.
+model CaseStudy {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  industry    String   // Manufacturing | Oil & Gas | Power | Mining | Automotive | Chemical | Healthcare | Container Terminal | Utilities | Construction | IT | Services
+  level       String   // Beginner | Intermediate | Advanced | Expert
+  context     String
+  problem     String
+  data        String?  // JSON
+  constraints String?  // JSON string[]
+  analysis    String?
+  decision    String?
+  alternatives String? // JSON string[]
+  consequences String?
+  lessonsLearned String?
+  caseType    String   @default("SYNTHETIC") // SYNTHETIC | REAL
+  referenceIds String? // JSON string[]
+  status      String   @default("DRAFT")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// =============================================================================
+// (E) ASSESSMENT  —  Generation Matrix (cert, §8), Exam Engine (§26)
+// =============================================================================
+
+/// Multi-dimensional generation matrix for the certification track:
+/// certification × domain × difficulty × cognitiveLevel × scenario × industry × questionType.
+model CertificationMatrixCell {
+  id              String   @id @default(cuid())
+  certificationId String
+  domainId        String?
+  difficulty      String
+  cognitiveLevel  String
+  scenario        String?
+  industry        String?
+  questionType    String
+  targetCount     Int      @default(20)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  certification   Certification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  @@unique([certificationId, domainId, difficulty, cognitiveLevel, scenario, industry, questionType])
+  @@index([certificationId])
+}
+
+model Exam {
+  id              String   @id @default(cuid())
+  name            String
+  certificationId String?
+  type            String   // Random | Timed | Domain | WeakArea | Adaptive | Mock | Practice
+  config          String?  // JSON
+  durationMin     Int      @default(60)
+  questionCount   Int      @default(50)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  certification   Certification? @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  attempts        QuizAttempt[]
+}
+
+// =============================================================================
+// (F) LEARNING & USER DATA  —  Paths (§22), Students, Attempts, Analytics (§28)
+// =============================================================================
+
+model LearningPath {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name            String                   // CMRP Path, Reliability Engineer Path
+  type            String                   // Certification | Role
+  certificationId String?
+  description     String?
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  certification   Certification? @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  steps           LearningPathStep[]
+}
+
+model LearningPathStep {
+  id          String   @id @default(cuid())
+  pathId      String
+  lessonId    String?
+  conceptId   String?  // KnowledgeObject id
+  order       Int      @default(0)
+  level       String   // Foundation | Practitioner | Professional | Advanced | Expert | Certification
+  path        LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  lesson      Lesson?       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  @@index([pathId])
+}
+
 model Student {
   id        String   @id @default(cuid())
   name      String
-  level     String   @default("Undergraduate")
+  level     String   @default("Foundation") // Foundation | Practitioner | Professional | Advanced | Expert | Certification
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   attempts  QuizAttempt[]
 }
 
-/// One quiz sitting.
 model QuizAttempt {
   id            String    @id @default(cuid())
   studentId     String?
   sectionId     String?
+  certificationId String?
+  examId        String?
   studentKey    String
   startedAt     DateTime  @default(now())
   completedAt   DateTime?
   score         Int       @default(0)
   totalQuestions Int      @default(0)
   durationSec   Int       @default(0)
-  questionIds   String
+  questionIds   String    // JSON string[]
   createdAt     DateTime  @default(now())
   student  Student?      @relation(fields: [studentId], references: [id], onDelete: SetNull)
   section  Section?      @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  certification Certification? @relation(fields: [certificationId], references: [id], onDelete: SetNull)
+  exam     Exam?         @relation(fields: [examId], references: [id], onDelete: SetNull)
   answers  QuizAnswer[]
   @@index([studentId])
   @@index([sectionId])
+  @@index([certificationId])
 }
 
-/// A single answered question inside an attempt.
 model QuizAnswer {
   id            String   @id @default(cuid())
   attemptId     String
@@ -240,4 +601,45 @@ model QuizAnswer {
   attempt   QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   question  Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
   @@index([attemptId])
+}
+
+/// Per-concept mastery for adaptive learning (§27) & analytics (§28).
+model StudentConceptProgress {
+  id              String   @id @default(cuid())
+  studentKey      String
+  knowledgeObjectId String?
+  conceptName     String
+  attempts        Int      @default(0)
+  correct         Int      @default(0)
+  lastAttemptAt   DateTime?
+  mastery         Float    @default(0) // 0..1
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@unique([studentKey, knowledgeObjectId])
+  @@index([studentKey])
+}
+
+// =============================================================================
+// (G) SOURCES / REFERENCES  (§5, §11)
+// =============================================================================
+
+/// A source following the source hierarchy. Linked to lessons/questions/KOs
+/// via their `referenceIds` JSON arrays. Expanded with source metadata (§9, §11).
+model Reference {
+  id        String   @id @default(cuid())
+  sectionId String?
+  title     String
+  level     String   // "1".."10"
+  levelLabel String  // e.g. "Official Certification Body"
+  type      String   // BOOK | STANDARD | HANDBOOK | PAPER | WEBSITE | BOK | EXAM_OUTLINE
+  sourceType String? // §9 source metadata
+  publication String?
+  docVersion String?
+  docDate    DateTime?
+  referenceLocation String? // page/section/URL anchor
+  url       String?
+  citation  String
+  createdAt DateTime @default(now())
+  section   Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  @@index([sectionId])
 }

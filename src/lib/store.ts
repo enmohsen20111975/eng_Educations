@@ -9,7 +9,8 @@ export type View =
   | "quiz"
   | "progress"
   | "admin"
-  | "tracker";
+  | "tracker"
+  | "certifications";
 
 interface AppState {
   view: View;
@@ -31,6 +32,7 @@ interface AppState {
   openProgress: () => void;
   openAdmin: (tab?: AppState["adminTab"]) => void;
   openTracker: () => void;
+  openCertifications: () => void;
   openHome: () => void;
   setAdminTab: (tab: AppState["adminTab"]) => void;
   setActiveQuestionId: (id: string | null) => void;
@@ -62,6 +64,7 @@ export const useAppStore = create<AppState>((set) => ({
   openAdmin: (tab) =>
     set({ view: "admin", adminTab: tab ?? "sections" }),
   openTracker: () => set({ view: "tracker" }),
+  openCertifications: () => set({ view: "certifications" }),
   setAdminTab: (tab) => set({ adminTab: tab }),
   setActiveQuestionId: (id) => set({ activeQuestionId: id }),
 }));
