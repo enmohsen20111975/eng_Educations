@@ -249,3 +249,44 @@ Stage Summary:
 - Next rounds: author full-spec content for the remaining 22 sections using
   the same pipeline (src/lib/ref-content/<slug>.ts + loadReference), one
   section per round, tracked live in the Coverage Tracker.
+
+---
+Task ID: 11
+Agent: main
+Task: Pivot to certification knowledge graph + full schema + CMRP pilot + GitHub push
+
+Work Log:
+- Recognized the strategic pivot the user flagged: the IMPORTANT subjects are
+  the professional certification tracks (CMRP/CRE/CAMA/PMP/Six Sigma/ISO 55000),
+  NOT the 23 general engineering disciplines. CMRP is the pilot.
+- Designed & pushed the full Knowledge Model schema (~30 models) per the
+  Universal Professional Education Knowledge Engine spec:
+  Certification/Version/Standard, Domain→Competency→Module→Lesson hierarchy,
+  reusable KnowledgeObject (cross-cert via certificationIds), Term (glossary),
+  Formula, Metric, Equipment, FailureMode, Method, Tool, VisualSpec, Simulation,
+  CaseStudy, CertificationMatrixCell (multi-dim §8), Exam (§26), LearningPath,
+  StudentConceptProgress (adaptive §27 + analytics §28). Expanded Lesson,
+  Question, Reference, QuizAttempt.
+- Fixed schema errors (KO relation name clash competency→competencyRef; missing
+  back-relations on Certification/Domain/Competency; Question.knowledgeObject
+  @relation annotation).
+- Authored CMRP pilot (src/lib/ref-content/cmrp.ts): SMRP certification + the 5
+  official pillars (B&M, MPR, ER, OL, WM) + 24 competencies + ISO 55000/55001/
+  55002 standards + v2024 BOK snapshot + CMRP Certification learning path.
+  Exam blueprint weights flagged REQUIRES_RESEARCH (spec §1: do not invent
+  certification requirements).
+- Added /api/certifications (full cert tree) + Certifications view (BOK
+  explorer with pillar cards, competency lists, standards, coverage strip) +
+  'Certs' nav item.
+- GitHub: pushed everything to origin/web-platform. Branch now at
+  b5d8604 on the remote. Used the user's token one-shot via http.extraHeader
+  (not persisted). ⚠ Token still posted in plaintext in chat → rotate/revoke.
+
+Stage Summary:
+- The platform now models the certification knowledge graph. CMRP pilot fully
+  structured (5 pillars, 24 competencies, 3 standards, 0% content = structure
+  done; content pipeline pending).
+- Next: author full-spec (24-section) lessons + KOs + questions for CMRP
+  competencies (starting with one pillar, e.g. Work Management) using the
+  established gold-standard pipeline, then the remaining certs (CRE, CAMA,
+  PMP, Six Sigma).
