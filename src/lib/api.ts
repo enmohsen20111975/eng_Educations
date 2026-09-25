@@ -8,6 +8,9 @@ import type {
   QuizSubmitResponse,
   Section,
   SectionWithCounts,
+  TrackerSummary,
+  KnowledgeObject,
+  Reference,
 } from "./types";
 import { getStudentKey } from "./student-key";
 
@@ -87,6 +90,24 @@ export const api = {
 
   matrix: () => apiGet<MatrixCell[]>("/api/matrix"),
   upsertMatrixCell: (data: Partial<MatrixCell>) => apiPost<MatrixCell>("/api/matrix", data),
+
+  tracker: () => apiGet<TrackerSummary>("/api/tracker"),
+  loadReferenceContent: (sectionSlug: string) =>
+    apiPost<{ lessons: number; kos: number; questions: number; references: number }>(
+      "/api/admin/load-reference",
+      { sectionSlug },
+    ),
+
+  references: (sectionId: string) =>
+    apiGet<Reference[]>(`/api/references?sectionId=${sectionId}`),
+  createReference: (data: Partial<Reference>) => apiPost<Reference>("/api/references", data),
+  knowledgeObjects: (sectionId: string) =>
+    apiGet<KnowledgeObject[]>(`/api/knowledge-objects?sectionId=${sectionId}`),
+
+  updateLessonStatus: (id: string, data: { status?: string; confidence?: string; verificationStatus?: string; version?: string }) =>
+    apiPut<Lesson>(`/api/lessons/${id}/status`, data),
+  updateQuestionStatus: (id: string, data: { status?: string; verificationStatus?: string; version?: string }) =>
+    apiPut<Question>(`/api/questions/${id}/status`, data),
 
   startQuiz: (body: { sectionId?: string; difficulty?: string; count?: number }) =>
     apiPost<QuizStartResponse>("/api/quiz/start", body),

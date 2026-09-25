@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Trophy,
   ShieldCheck,
+  Target,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAppStore, type View } from "@/lib/store";
@@ -57,6 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { id: "home", label: "Home", icon: LayoutDashboard, open: store.openHome },
     { id: "curriculum", label: "Curriculum", icon: BookOpen, open: store.openCurriculum },
     { id: "quiz", label: "Quiz", icon: ListChecks, open: () => store.openQuiz(null) },
+    { id: "tracker", label: "Coverage", icon: Target, open: store.openTracker },
     { id: "progress", label: "Progress", icon: Trophy, open: store.openProgress },
     { id: "admin", label: "Admin", icon: ShieldCheck, open: () => store.openAdmin("sections") },
   ];

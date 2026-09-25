@@ -13,6 +13,10 @@ import {
   Sigma,
   PenLine,
   BookText,
+  BookOpen,
+  AlertTriangle,
+  CheckCircle2,
+  Database,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -23,6 +27,8 @@ import {
   SectionIcon,
 } from "@/components/shared";
 import { accentGradient, accentSoft } from "@/lib/student-key";
+import { LESSON_TEMPLATE, STATUS_META } from "@/lib/spec";
+import type { ContentStatus } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -63,6 +69,11 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
   const { section, questions } = lesson;
   const grad = accentGradient(section?.color);
   const soft = accentSoft(section?.color);
+  const statusMeta = STATUS_META[(lesson.status as ContentStatus) || "DRAFT"];
+  const hasFullTemplate = !!lesson.sections;
+  const sectionsObj: Record<string, string> | null = lesson.sections
+    ? safeParse(lesson.sections)
+    : null;
 
   // sibling navigation
   const siblings: { id: string; title: string; order: number }[] =
@@ -97,7 +108,7 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
               {lesson.titleAr ? (
                 <p className="text-sm text-muted-foreground" dir="rtl">{lesson.titleAr}</p>
               ) : null}
-              <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" /> {lesson.durationMin} min read
                 </span>
@@ -106,6 +117,24 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
                     <ListChecks className="h-3.5 w-3.5" /> {questions.length} practice questions
                   </span>
                 ) : null}
+                <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold", statusMeta.tone)}>
+                  {statusMeta.label}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
+                  v{lesson.version}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  Confidence: <span className="font-medium text-foreground">{lesson.confidence}</span>
+                </span>
+                {hasFullTemplate ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-3 w-3" /> 24-section spec
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-semibold text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3" /> Abbreviated (DRAFT)
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -117,33 +146,70 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {/* Concept introduction */}
-          <Card className="p-5">
-            <SectionLabel icon={BookText} label="Concept Introduction" soft={soft} />
-            <div className="mt-3">
-              <MarkdownView content={lesson.conceptIntroduction} />
-            </div>
-          </Card>
-
-          {/* Example */}
-          {lesson.example ? (
-            <Card className="p-5">
-              <SectionLabel icon={Lightbulb} label="Worked Example" soft={soft} />
-              <div className="mt-3">
-                <MarkdownView content={lesson.example} />
-              </div>
-            </Card>
-          ) : null}
-
-          {/* Exercise */}
-          {lesson.exercise ? (
-            <Card className="p-5">
-              <SectionLabel icon={PenLine} label="Practice Exercise" soft={soft} />
-              <div className="mt-3">
-                <MarkdownView content={lesson.exercise} />
-              </div>
-            </Card>
-          ) : null}
+          {sectionsObj ? (
+            // ---- Full 24-section data-collector template ----
+            <>
+              {LESSON_TEMPLATE.map((tpl) => {
+                const val = sectionsObj[tpl.id];
+                if (!val || val === "NOT_APPLICABLE") return null;
+                return (
+                  <Card key={tpl.id} className="p-5">
+                    <div className="mb-2 flex items-center justify-between">
+                      <SectionLabel icon={sectionIconFor(tpl.id)} label={tpl.label} soft={soft} />
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {tpl.group}
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <MarkdownView content={val} />
+                    </div>
+                  </Card>
+                );
+              })}
+            </>
+          ) : (
+            // ---- Abbreviated (DRAFT) fallback ----
+            <>
+              <Card className="border-amber-500/30 bg-amber-500/5 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <div className="text-sm">
+                    <p className="font-semibold text-amber-800 dark:text-amber-200">
+                      This lesson is in <strong>DRAFT</strong> form (abbreviated).
+                    </p>
+                    <p className="mt-1 text-amber-700/80 dark:text-amber-300/80">
+                      It has not yet been upgraded to the full 24-section data-collector
+                      spec (Knowledge Objects, sources, worked examples, case study,
+                      practice questions). Author the full content via the Admin UI or
+                      the content pipeline to move it to <strong>READY</strong>.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-5">
+                <SectionLabel icon={BookText} label="Concept Introduction" soft={soft} />
+                <div className="mt-3">
+                  <MarkdownView content={lesson.conceptIntroduction} />
+                </div>
+              </Card>
+              {lesson.example ? (
+                <Card className="p-5">
+                  <SectionLabel icon={Lightbulb} label="Worked Example" soft={soft} />
+                  <div className="mt-3">
+                    <MarkdownView content={lesson.example} />
+                  </div>
+                </Card>
+              ) : null}
+              {lesson.exercise ? (
+                <Card className="p-5">
+                  <SectionLabel icon={PenLine} label="Practice Exercise" soft={soft} />
+                  <div className="mt-3">
+                    <MarkdownView content={lesson.exercise} />
+                  </div>
+                </Card>
+              ) : null}
+            </>
+          )}
         </div>
 
         {/* Sidebar: key formulas + question preview */}
@@ -239,4 +305,43 @@ function SectionLabel({
       <h2 className="text-sm font-semibold uppercase tracking-wide">{label}</h2>
     </div>
   );
+}
+
+function safeParse(s: string): Record<string, string> | null {
+  try {
+    const v = JSON.parse(s);
+    return v && typeof v === "object" ? (v as Record<string, string>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function sectionIconFor(id: string): React.ComponentType<{ className?: string }> {
+  const map: Record<string, React.ComponentType<{ className?: string }>> = {
+    learning_objectives: BookText,
+    prerequisites: BookOpen,
+    introduction: BookText,
+    terminology: BookText,
+    detailed_explanation: BookText,
+    core_principles: Sigma,
+    components: Database,
+    process: ListChecks,
+    formula_calculation: Sigma,
+    worked_example: Lightbulb,
+    industrial_example: Lightbulb,
+    case_study: Lightbulb,
+    visual_explanation: BookOpen,
+    simulation_opportunity: ListChecks,
+    common_mistakes: AlertTriangle,
+    limitations: AlertTriangle,
+    comparison: ListChecks,
+    practical_application: PenLine,
+    decision_scenario: ListChecks,
+    practice_questions: ListChecks,
+    certification_questions: ListChecks,
+    summary: BookText,
+    key_takeaways: BookText,
+    references: BookOpen,
+  };
+  return map[id] || BookText;
 }

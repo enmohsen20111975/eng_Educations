@@ -7,6 +7,7 @@ import { CurriculumView } from "@/components/student/curriculum";
 import { LessonView } from "@/components/student/lesson-viewer";
 import { QuizView } from "@/components/student/quiz";
 import { ProgressView } from "@/components/student/progress";
+import { TrackerView } from "@/components/student/tracker";
 import { AdminView } from "@/components/admin/admin-view";
 
 export default function Home() {
@@ -19,6 +20,7 @@ export default function Home() {
       {view === "lesson" && <LessonView />}
       {view === "quiz" && <QuizView />}
       {view === "progress" && <ProgressView />}
+      {view === "tracker" && <TrackerView />}
       {view === "admin" && <AdminView />}
     </AppShell>
   );
