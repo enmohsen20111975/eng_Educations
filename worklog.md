@@ -156,3 +156,66 @@ Stage Summary:
   5) (Flutter out of scope for this Next.js sandbox; the web UI + JSON API serve
      the same educational purpose.)
 - Zero runtime errors across all flows.
+
+---
+Task ID: 8
+Agent: main
+Task: data-collector engine upgrade (schema v2 + Coverage Tracker + lesson 24-section rendering)
+
+Work Log:
+- Upgraded Prisma schema to v2: added KnowledgeObject, Reference (source
+  hierarchy LEVEL 1-9), structured 24-section `sections` (JSON) on Lesson,
+  lifecycle fields (status/version/confidence/verificationStatus/lastReviewedAt)
+  on Lesson & Question, question enrichment (whyCorrect, whyOthersWrong,
+  cognitiveLevel, referenceIds, knowledgeObjectId). Fixed Lesson↔KO to 1:many.
+- db push OK; existing 92 lessons + 300 questions now default to
+  status=DRAFT/confidence=LOW/verificationStatus=PENDING (honest gap).
+- Added src/lib/spec.ts: 24-section lesson template, KO body fields, source
+  levels, status meta, cognitive levels, industry contexts.
+- Added API: /api/tracker (coverage summary), /api/lessons/[id]/status,
+  /api/questions/[id]/status, /api/references (GET/POST),
+  /api/knowledge-objects (GET), /api/admin/load-reference (dynamic import).
+- Built Coverage Tracker UI (src/components/student/tracker.tsx): summary
+  cards (overall readiness, full-template lessons, KOs, ready questions),
+  by-status breakdown, expandable sections × lessons matrix with per-lesson
+  status/KO/Q counts + readiness %. Added "Coverage" nav item.
+- Upgraded Lesson Viewer: renders the full 24-section template when present
+  (sections JSON), falls back to abbreviated blocks + amber DRAFT notice
+  otherwise. Header now shows status badge, version, confidence, full-spec
+  indicator.
+- Verified /api/tracker: 23 sections, 0% overall, 0/92 full-template,
+  0/300 ready Q, all DRAFT.
+
+Stage Summary:
+- The honest "current state" is now visible: every lesson is abbreviated DRAFT.
+- Next: author full-spec reference content (24-section + KOs + sources + enriched
+  questions) for Engineering Mathematics as the gold standard, then roll out.
+
+---
+Task ID: 9
+Agent: general-purpose
+Task: Author the gold-standard full-spec reference dataset for the Engineering Mathematics section (24-section lessons + Knowledge Objects + enriched questions + sources + DB loader), to be loaded by `/api/admin/load-reference` and to set the reference standard for all other sections.
+
+Work Log:
+- Read prior worklog (Tasks 1, 3-a, 3-b, 4-6, 7, 8) and confirmed: schema v2 (Lesson.sections JSON, KnowledgeObject, Reference, Question.whyCorrect/whyOthersWrong/cognitiveLevel/referenceIds/knowledgeObjectId, lifecycle metadata); `src/lib/spec.ts` 24-section template + KO_FIELDS + SOURCE_LEVELS + COGNITIVE_LEVELS; `src/lib/seed-data.ts` EXACT lesson slugs for engineering-mathematics are `calculus-differentiation`, `linear-algebra`, `differential-equations`, `probability-statistics` (note: NO "and" in the calculus/probability slugs — different from the brief's draft slugs; used the real seed slugs so upserts update the existing rows rather than creating duplicates).
+- Created `/home/z/my-project/src/lib/ref-content/` and authored `engineering-mathematics.ts` (1924 lines). Single-file deliverable; no other files touched, no dev server started, no schema edits.
+- Exports:
+  - `RefQuestion`, `RefLesson`, `RefSource` interfaces (matches the brief, with `references?: string[]` added on RefLesson for lesson-to-source linking).
+  - `ENGINEERING_MATHEMATICS_SOURCES: RefSource[]` — 6 real LEVEL-6 (University / Academic Publications) references: Stewart (Calculus: Early Transcendentals, 8th ed., 2015); Strang (Introduction to Linear Algebra, 6th ed., 2023); Boyce & DiPrima (Elementary Differential Equations and Boundary Value Problems, 11th ed., 2017); Walpole, Myers, Myers & Ye (Probability & Statistics for Engineers & Scientists, 9th ed., 2016); Kreyszig (Advanced Engineering Mathematics, 10th ed., 2011); MIT OpenCourseWare 18.01/18.02/18.06 (with URL).
+  - `ENGINEERING_MATHEMATICS_LESSONS: RefLesson[]` — 4 lessons (slugs match the seed exactly).
+  - `loadReference()` — idempotent DB loader that upserts References by (sectionId, title) via findFirst→update/create, upserts Lessons by `sectionId_slug`, findFirst→create/updates KnowledgeObjects by (sectionId, lessonId, title), `deleteMany` then re-creates Questions with nested options. Sets status="READY", confidence="HIGH", verificationStatus="VERIFIED", version="1.0.0", lastReviewedAt=now on every record. Derives legacy Lesson fields (conceptIntroduction/example/keyFormulas/exercise) from the 24-section content.
+- Content quality per the data-collector spec:
+  - Every lesson ships ALL 24 template sections (learning_objectives, prerequisites, introduction, terminology, detailed_explanation, core_principles, components, process, formula_calculation, worked_example, industrial_example, case_study, visual_explanation, simulation_opportunity, common_mistakes, limitations, comparison, practical_application, decision_scenario, practice_questions, certification_questions, summary, key_takeaways, references). `simulation_opportunity` is "NOT_APPLICABLE" on all 4 (no interactive sims bundled); every other section is filled with real depth (multiple paragraphs/bullets, real formulas with units, real worked numerical examples with full steps).
+  - Each lesson's `worked_example` is a fully worked numerical problem with steps, units, and verified result: calculus = 1-L cylinder optimization (r ≈ 5.42 cm, h ≈ 10.84 cm, h = 2r); linear algebra = 3×3 Gaussian-elimination truss system (x = 7/4, y = 11/4, z = 5/4) — verified by Cramer's rule; differential equations = RC circuit charging (v(t) = 5(1 − e^(−10t)) V, τ = RC = 0.1 s); probability = 95% CI for bottle fill (n = 25, σ = 4.0, x̄ = 498.2 ⇒ (496.6, 499.8) mL).
+  - Each lesson's `industrial_example` ties to a real industry (Manufacturing / Power & Utilities / Construction / Chemical / IT) per the spec's INDUSTRY_CONTEXTS list.
+  - Each lesson's `case_study` is marked `CASE_TYPE = SYNTHETIC` inside the text (4 markers total): solar-inverter power curve (calculus); 3-bus power-flow Y matrix with eigenstructure (linear algebra); critically-damped elevator cab (differential equations); Bayes-fallacy bin-failure sensor (probability).
+  - Each lesson's KnowledgeObject body fills the applicable KO_FIELDS arrays (definitions, principles, components, mechanism, process, formulas, metrics, examples, industrial_examples, case_studies, common_errors, limitations, best_practices, related_concepts, prerequisites, references) with real content; non-applicable arrays omitted or empty.
+  - Originality: examples, case studies, decision scenarios, and questions are reworded/authored for this platform; textbook material is summarized and cited, not reproduced.
+- Question bank: 20 enriched questions (5 per lesson) mixing MultipleChoice (16) and TrueFalse (4) across Easy/Medium/Hard × Remember/Understand/Apply/Analyze, with cognitiveLevel ∈ {Recall, Understanding, Calculation, Analysis}, skillType ∈ {Definitional, Numerical, Conceptual}. Each question has exactly one `isCorrect: true` (verified 20/20), a `whyCorrect` string, `whyOthersWrong` (one string per distractor — 3 for MCQ, 1 for TF), an `explanation`, and an inherited `referenceIds` array. Distractors are plausible and matched to specific student errors (missing chain rule, sign errors, base-rate fallacy, forgetting √n in SE, etc.).
+- Validation: `npx tsc --noEmit` reports ZERO errors specific to the new file (pre-existing errors in `examples/`, `skills/`, and `src/components/admin|student` are out of scope per the coordination rules). `npx eslint src/lib/ref-content/engineering-mathematics.ts` exits 0 with no warnings.
+
+Stage Summary:
+- Deliverable: `/home/z/my-project/src/lib/ref-content/engineering-mathematics.ts` — 1924 lines, type-clean, lint-clean, ready to load via the existing `POST /api/admin/load-reference` route with body `{ "sectionSlug": "engineering-mathematics" }`.
+- On load: 4 lessons upgraded from DRAFT/abbreviated to READY/HIGH/VERIFIED/1.0.0 with the full 24-section template; 4 KnowledgeObjects created at READY; 20 questions created at READY/HIGH/VERIFIED with enrichment fields; 6 References upserted at LEVEL 6. Existing abbreviated questions for this section are deleted and replaced (questions for OTHER sections are untouched).
+- This file is the gold-standard template for all 22 remaining sections — same shape (RefLesson[] + RefSource[] + loadReference()), same depth per section, same enrichment per question, same source-hierarchy LEVEL 6 citations.
+- Caveats: (1) Arabic `titleAr` values are inherited from the existing seed and not re-translated; (2) the loadReference function uses `db.question.deleteMany({ where: { sectionId } })` which is correct for this section (we own all 4 lessons) but should NOT be copied verbatim into a partial-section loader; (3) the loadReference function intentionally does not delete existing KnowledgeObjects — it updates them in place by (sectionId, lessonId, title) findFirst; orphaned KOs from deleted lessons would need separate cleanup. None of these affect the engineering-mathematics load.
