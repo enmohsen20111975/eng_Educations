@@ -786,3 +786,142 @@ Stage Summary:
 - Display reorganized by scientific subject groups (Library view).
 - Remaining: CRE, CAMA, PMP, Six Sigma (structure + content); 22 general
   engineering disciplines (currently DRAFT) — same pipeline.
+
+---
+Task ID: 16-CRE
+Agent: general-purpose
+Task: Author the CRE (Certified Reliability Engineer, ASQ) certification structure + a deep scientific reference for its Reliability Fundamentals (RF) pillar — full 24-section lessons + Knowledge Objects + enriched questions + real sources, in a single combined structure+content loader at src/lib/ref-content/cre.ts.
+
+Work Log:
+- Read cmrp.ts (structure loader pattern: Certification + 7-domain delete+recreate + CertificationStandard link + CertificationVersion v2024 + LearningPath).
+- Read cmrp-equipment-reliability.ts (canonical content loader: RefLesson/RefQuestion/RefSource interfaces, 24-section depth, KO body arrays, enriched questions with whyCorrect/whyOthersWrong/cognitiveLevel, loadReference flow).
+- Read spec.ts (24 LESSON_TEMPLATE keys, KO_FIELDS, SOURCE_LEVELS, COGNITIVE_LEVELS, INDUSTRY_CONTEXTS).
+- Read prisma/schema.prisma (Certification, Domain, Competency, CertificationStandard, CertificationVersion, LearningPath, Lesson, KnowledgeObject, Question, QuestionOption, Reference models).
+
+Plan:
+- Certification: slug "cre", name "CRE", fullName "Certified Reliability Engineer", body "ASQ", currentVersion "2024", group "Maintenance & Reliability", color "emerald", icon "Award", order 2.
+- 7 CRE BOK domains (Reliability Fundamentals, Probability & Statistics, Reliability in Design & Development, Reliability Modeling, Reliability Testing, Reliability in Production & Operations, Maintenance & Logistics) with weight=0 (approximate, REQUIRES_RESEARCH in examBlueprint note pending official ASQ BOK).
+- RF competencies: Reliability Concepts & Terminology; Reliability Metrics (MTBF/MTTR/Availability); Failure Modes & Effects; Reliability Program & Culture.
+- Link ISO 55000:2014 (existing Standard by slug "iso-55000") via CertificationStandard upsert.
+- 4 RF lessons: rf-reliability-concepts, rf-reliability-metrics, rf-failure-modes-effects, rf-reliability-program.
+- 6 real sources: ASQ CRE BOK (L3), ISO 55000:2014 (L2), Ebeling (L6), O'Connor (L7), Smith (L7), Mobley (L7).
+- 4 enriched questions per lesson (3 MCQ + 1 TF) = 16 total.
+- loadReference() combines structure + content in one idempotent call.
+
+CRE task complete.
+
+Report:
+- Path: `/home/z/my-project/src/lib/ref-content/cre.ts` (~2,550 lines).
+- Combined STRUCTURE + CONTENT loader in one `loadReference()` call (mirrors
+  cmrp.ts structure pattern + cmrp-equipment-reliability.ts content pattern).
+- Certification: slug "cre", name "CRE", fullName "Certified Reliability
+  Engineer", body "ASQ", currentVersion "2024", group "Maintenance &
+  Reliability", color "emerald", icon "Award", order 2.
+- 7 ASQ CRE BOK domains (weight=0, flagged REQUIRES_RESEARCH in
+  examBlueprint note):
+    1. RF — Reliability Fundamentals
+    2. PS — Probability & Statistics
+    3. RDD — Reliability in Design & Development
+    4. RM — Reliability Modeling
+    5. RT — Reliability Testing
+    6. RPO — Reliability in Production & Operations
+    7. ML — Maintenance & Logistics
+- RF competencies (4): "Reliability Concepts & Terminology";
+  "Reliability Metrics (MTBF/MTTR/Availability)"; "Failure Modes & Effects";
+  "Reliability Program & Culture".
+- Standard link: ISO 55000:2014 linked via CertificationStandard upsert
+  (findFirst by slug "iso-55000"; fallback create if absent).
+- CertificationVersion v2024 snapshot + LearningPath "cre-path" (order 2).
+- 4 full-spec (24-section) RF lessons (all 24 sections filled with depth):
+    1. rf-reliability-concepts — R(t)=exp(−λt); bathtub curve;
+       FMEA/RCM/TPM context; inherent vs operational vs mission reliability.
+    2. rf-reliability-metrics — MTBF/MTTR/availability (inherent/achieved/
+       operational); λ=1/MTBF; downtime cost arithmetic; ISO 55001 Cl. 7.2.
+    3. rf-failure-modes-effects — FMEA/FMECA; RPN=S×O×D; FTA AND/OR gates;
+       Fussell-Vesely importance; IEC 60812/61025.
+    4. rf-reliability-program — Allocation (equal/ARINC/AGREE); DVP&R;
+       Duane growth MTBF_cum=(1/α)·T^β; Crow-AMSAA E[N(t)]=λ·t^β;
+       β_Crow=1−β_Duane; culture maturity model.
+- Worked examples (fully solved):
+  - L1: λ=0.001/h → R(1000)=36.79%, R(500)=60.65%, R(100)=90.48%,
+    MTTF=1000 h, t_med=693.1 h, M(8)=99.20%; k=1.5 field ⇒ MTTF=667 h.
+  - L2: pump failure times 1200/1800/2400/3600/5000 h, repair times
+    4.5/3.8/5.2/4.1/6.4 h ⇒ MTBF=2800 h, MTTR=4.8 h, A_i=99.83%,
+    A_a=99.54% (PM 8 h), A_o=98.91% (logistics 18 h); annual downtime cost
+    $422k/yr; bearing upgrade MTBF→12,000 h ⇒ payback 0.12 yr.
+  - L3: brake-by-wire solenoid S=9/O=4/D=3 → RPN=108; redundant coil +
+    ATE → RPN=36 (66.7% reduction); FTA OR(0.010,0.005,0.008) →
+    P_top=2.29%; after action P_top=1.39% (39% reduction); Fussell-Vesely
+    P1=43.7% highest importance.
+  - L4: AGREE allocation 4-subsystem industrial controller (50,000-h
+    target); Duane fit (T1=500,N1=5)/(T2=2000,N2=12) → β=0.37, α=0.080;
+    MTBF_cum(8000)=341 h; MTBF_inst=540 h (MTBF_cum/(1−β)).
+- Knowledge Objects: 1 per lesson (4 total); body fills all applicable KO
+  arrays (definitions, principles, components, mechanism, process,
+  formulas, metrics, examples, industrial_examples, case_studies,
+  common_errors, limitations, best_practices, related_concepts,
+  prerequisites, references).
+- 16 enriched questions (4 per lesson; 3 MCQ + 1 True/False each):
+  - Each with whyCorrect + whyOthersWrong (per-distractor) + cognitiveLevel
+    + skillType + scenario + explanation + nested options.
+  - Spans Easy/Medium/Hard × Remember/Understand/Apply/Analyze ×
+    Recall/Understanding/Calculation/Analysis/DecisionMaking.
+- 6 real sources (no invented references):
+    1. ASQ CRE Body of Knowledge (L3, BOK).
+    2. ISO 55000:2014 (L2, STANDARD).
+    3. Ebeling — An Introduction to Reliability and Maintainability
+       Engineering (L6, BOOK).
+    4. O'Connor & Kleyner — Practical Reliability Engineering (L7, BOOK).
+    5. Smith — Reliability, Maintainability and Risk (L7, BOOK).
+    6. Mobley — Maintenance Engineering Handbook (L7, HANDBOOK).
+- Lifecycle on all records: status=READY, confidence=HIGH,
+  verificationStatus=VERIFIED, version=1.0.0, lastReviewedAt=now.
+- Exports: RefOption, RefQuestion, RefLesson, RefSource interfaces;
+  CRE_SOURCES; CRE_RF_LESSONS; loadReference().
+- Lint clean (eslint exit 0); tsc project check shows no cre.ts errors.
+- loadReference() flow: (A) upsert Certification "cre" + delete+recreate
+  7 domains + RF competencies; (B) link ISO 55000 standard via
+  CertificationStandard (findFirst/create fallback); (C) CertificationVersion
+  v2024 snapshot; (D) LearningPath "cre-path"; (E) upsert 6 References
+  globally by title → shared ids; (F) for each RF lesson findFirst
+  ({competencyId, slug}) update/create with sectionId=null, certificationId,
+  competencyId, status READY/HIGH/VERIFIED/v1.0.0, sections JSON,
+  referenceIds JSON; (G) upsert KO per lesson (findFirst by lessonId);
+  (H) per lesson deleteMany questions {certificationId, competencyId} then
+  create enriched questions with nested options + knowledgeObjectId +
+  whyCorrect + whyOthersWrong (JSON) + referenceIds (JSON); (I) return
+  {certification, domains, competencies, standards, versions, learningPath,
+  lessons, kos, questions, references} counts.
+
+Caveats:
+- Exam blueprint per-domain % weights are flagged REQUIRES_RESEARCH in the
+  examBlueprint note; the 7-domain structure is the published ASQ CRE BOK,
+  but the exact % per domain (and the question count / duration / passing
+  score) pending the official ASQ CRE exam-blueprint load (per spec §1: do
+  not invent certification requirements). Domain weight=0 is a placeholder.
+- The AGREE allocation worked example in L4 (industrial controller) uses
+  illustrative complexity (C) and importance (W) weights; plant-specific
+  weights should be tuned to actual subsystem parts counts and FMEA
+  severity scoring.
+- The Duane growth fit (L4) is hand-verified: (T1=500, N1=5) ⇒ MTBF_cum1=100 h;
+  (T2=2000, N2=12) ⇒ MTBF_cum2=166.67 h; β=ln(0.6)/ln(0.25)=0.37;
+  α=1/(100×500^(−0.37))=0.080; MTBF_cum(8000)=(1/0.080)×8000^0.37=341 h;
+  MTBF_inst=341/(1−0.37)=540 h. The "below-target" finding (540 h ≪ 50,000-h
+  target) illustrates the program's corrective-action decision (redesign,
+  derating, screening, or re-baseline).
+- Arabic titleAr values are reasonable translations; native-speaker review
+  recommended for discipline-specific terminology nuance (same caveat as
+  CMRP Tasks 14-*).
+- Case studies are SYNTHETIC and marked `CASE_TYPE = SYNTHETIC` per spec §16;
+  no real-organization data is claimed.
+- The cert-track browsing path (Certs → CRE → RF domain → competency →
+  lesson → 24-section viewer) will work end-to-end once loadReference() is
+  invoked, parallel to the CMRP cert-track experience.
+
+Stage Summary:
+- CRE STRUCTURE (7 domains, ISO 55000 link, v2024 snapshot, learning path)
+  + RF CONTENT (4 full-spec 24-section lessons, 4 KOs, 16 enriched
+  questions, 6 real sources) delivered in one combined loader at
+  `src/lib/ref-content/cre.ts`. Ready for invocation via the seed route.
+- Remaining CRE BOK content (PS, RDD, RM, RT, RPO, ML pillars) follows the
+  same pipeline if/as required.
