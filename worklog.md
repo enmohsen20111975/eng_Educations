@@ -1759,3 +1759,45 @@ Work Log:
 - TS clean: `npx tsc --noEmit` reports ZERO errors in cre-reliability-design.ts (16 pre-existing errors elsewhere in the repo, none in this file). ESLint clean (EXIT=0). Used JSON.stringify for all sections/referenceIds/whyOthersWrong/body fields; no TS errors from array-to-string conversions.
 - Coordinate with the seed-runner owner to wire cre-reliability-design.ts loadReference() into the seed route via the existing dynamic-import pattern in src/app/api/admin/load-reference/route.ts (analogous to how cre-reliability-modeling.ts, cre-probability-statistics.ts, cama-aml.ts, cama-pi.ts are wired).
 - Caveat: file is 1903 lines, slightly above the 1400-1700 target — content depth required to cover all 24 sections × 3 lessons + KO bodies + 12 enriched questions with whyCorrect/whyOthersWrong rationale drove the size up; compressed where possible without losing the worked numerical examples (AGREE R=0.95 allocation of 4 subsystems, parts-stress λ_board=1.944 FIT, Duane β=0.301 MTBF_cum(50,000h)=800h, capacitor derating 10× reduction) the task mandates.
+
+---
+Task ID: 17-CRE-RPO
+Agent: general-purpose
+Task: Author deep scientific reference for CRE Reliability in Production & Operations (RPO) domain — 3 full 24-section lessons + KOs + 12 enriched questions + 6 real sources. LAST CRE domain (7/7) — completing it completes CRE (5th core cert).
+
+Work Log:
+- Read /home/z/my-project/worklog.md (briefly — confirmed 17-CRE-PS, 17-CRE-RDD, 17-CRE-ML pattern), /home/z/my-project/src/lib/ref-content/cre-probability-statistics.ts (canonical 1872-line content-only loader pattern), /home/z/my-project/src/lib/spec.ts (24 LESSON_TEMPLATE keys + 16 KO_FIELDS + 9 SOURCE_LEVELS), /home/z/my-project/prisma/schema.prisma (Lesson/Question/QuestionOption/KnowledgeObject/Reference/Competency/Domain/Certification models).
+- Confirmed CRE cert slug="cre" (ASQ) + RPO domain code="RPO" exist in cre.ts (line 198-204); RPO seeded with NO competencies — created in loadReference() (matches PS/RDD/ML pattern).
+- Authored /home/z/my-project/src/lib/ref-content/cre-production-operations.ts (2272 lines). Mirrors cre-probability-statistics.ts exactly: RefOption/RefQuestion/RefLesson/RefSource types; CRE_RPO_SOURCES (6 real sources, levels 2/3/6/7); 3 lessons (LESSON_OEE, LESSON_FRACAS, LESSON_PFMEA); CRE_RPO_LESSONS array; SeedCompetency interface; CRE_RPO_COMPETENCIES (3 competencies); export async function loadReference().
+- 3 competencies under RPO (created in loadReference(), deleteMany-stale-then-create idempotent re-create):
+    1. Production Reliability & OEE
+    2. Field Data & FRACAS
+    3. Process FMEA & Continuous Improvement
+- 3 lessons (24 sections each, all 24/24 populated per lesson, 72 total):
+    - rpo-production-reliability-oee  (OEE=A×P×Q=0.870×0.922×0.990=0.7924=79.2% (≈79.3% rounded); 6-big-loss minute waterfall 35+27.4+20+12.6+3.85+0.15=99 min on 480 min PPT; DPMO=10,000; σ_LT=2.33, σ_ST=3.83; A_p=MTBF/(MTBF+MTTR)=0.980 vs OEE A=0.870; TEEP=OEE×Utilization)
+    - rpo-field-data-fracas  (FRACAS ISO 14224 mode/cause/mechanism record FRAC-2024-0391 on P-104 centrifugal pump; 5-mode Pareto [80,10,5,3,2]=100 → top-20%=80% (classic 80/20); Crow-AMSAA β̂=0.85 (improving), 95% CI [0.72,0.98] excludes 1.0; Laplace U=−5.77 (significant); post-retrofit MTBF 12→30h)
+    - rpo-process-fmea-continuous-improvement  (PFMEA table: bore oversize S=8,O=4,D=6→RPN=192 (action required, S≥8 override); 3 countermeasure paths: D'=2→RPN=64 containment, O'=2→RPN=96 root cause, S'=4→RPN=96 root cause; DMAIC project charter; 8D closure report D1-D8 on customer return)
+- 6 real sources (NOT invented):
+    - ASQ CRE BOK — Reliability in Production & Operations (L3)
+    - ISO 14224:2016 — Collection of reliability and maintenance data for equipment (L2)
+    - Ebeling — An Introduction to Reliability and Maintainability Engineering (L6)
+    - O'Connor — Practical Reliability Engineering (L7)
+    - Nakajima — Introduction to TPM (L7) (OEE/6-big-losses source)
+    - Montgomery — Introduction to Statistical Quality Control (L6)
+- 12 enriched questions (3 MCQ + 1 TrueFalse per lesson): whyCorrect + one whyOthersWrong per distractor + cognitiveLevel (Recall/Calculation/Analysis/Understanding) + explanation + skillType + scenario (Manufacturing/Chemical/Oil & Gas/Automotive). Spans Easy/Medium/Hard × Remember/Apply/Analyze/Understand.
+- Mirrored loadReference() flow exactly: find CRE by slug "cre" (throw if not found) → find RPO domain by code "RPO" (throw if not found) → deleteMany RPO competencies → create 3 RPO competencies from CRE_RPO_COMPETENCIES → map by NAME → id → validate all 3 expected competencyNames exist → upsert 6 References globally by title (sectionId=null) → for each lesson: findFirst by (competencyId, slug) then update/create (sectionId=null, certificationId, competencyId, READY/HIGH/VERIFIED/v1.0.0/lastReviewedAt=now) → findFirst KO by lessonId then update/create (body JSON.stringify, referenceIds JSON shared, certificationIds JSON [cre.id]) → deleteMany questions {certificationId, competencyId} → create each enriched question (nested QuestionOption, knowledgeObjectId link, whyCorrect, whyOthersWrong JSON, referenceIds JSON shared, READY/VERIFIED/PENDING/v1.0.0) → return {certification, domain, competencies, lessons, kos, questions, references} counts. Does NOT call cre.ts.
+- All 24 sections populated per lesson (verified: 24/24 per lesson, 72 total). formula_calculation lists OEE=A×P×Q, A=RT/PPT, P=NOT/RT, Q=N_good/N_total, DPMO=(D/(U×O))×10⁶, σ_LT=NORM.S.INV(1−DPMO/10⁶), σ_ST=σ_LT+1.5, A_p=MTBF/(MTBF+MTTR), TEEP=OEE×Utilization, Crow-AMSAA r(T)=λT^β and MLE β̂=r/Σln(T/T_i), Laplace U=[Σ t_i − rT/2]/[T√(r/12)], RPN=S×O×D, Cp/Cpk — all with variables/units/assumptions/interpretation. industrial_example named (Manufacturing, Chemical, Oil & Gas, Automotive, Aerospace, Medical). case_study synthetic (CASE_TYPE = SYNTHETIC — pharma blister-pack line 58→80% OEE; medical-device infusion-pump FRACAS 8,913→14,643h; insulin-pump cartridge PFMEA RPN 270→90). common_mistakes real. references citations to the 6 sources.
+- Knowledge Object body fills all applicable arrays (definitions, principles, components, mechanism, process, formulas, metrics, examples, industrial_examples, case_studies, common_errors, limitations, best_practices, related_concepts, prerequisites, references) — verified: 16/16 arrays per lesson, 48 total.
+- TS clean: `npx tsc --noEmit` reports ZERO errors in cre-production-operations.ts (16 pre-existing errors elsewhere in the repo, none in this file). ESLint clean (EXIT=0). Used JSON.stringify for all sections/referenceIds/whyOthersWrong/body fields; no TS errors from array-to-string conversions.
+- Coordinate with the seed-runner owner to wire cre-production-operations.ts loadReference() into the seed route via the existing dynamic-import pattern in src/app/api/admin/load-reference/route.ts (analogous to how cre-reliability-modeling.ts, cre-probability-statistics.ts, cre-reliability-design.ts, cre-maintenance-logistics.ts are wired).
+- Caveat: file is 2272 lines, above the 1400-1700 target — content depth required to cover all 24 sections × 3 lessons + 16-array KO bodies × 3 + 12 enriched questions with whyCorrect/whyOthersWrong rationale + the FRACAS-records, PFMEA-tables, and OEE-waterfall worked examples the task mandates drove the size up; compressed where possible without losing the worked numerical examples (OEE=A×P×Q=79.2%, Pareto 80/20, Crow-AMSAA β̂=0.85, PFMEA RPN 192→64, 6-big-loss minute waterfall). Pattern matches cre-probability-statistics.ts (1872 lines) and cre-reliability-design.ts (1903 lines) — slightly larger due to the additional machinery (OEE loss tree, ISO 14224 record fields, PFMEA tables, 8D report structure).
+
+COMPLETION NOTE: This loader (17-CRE-RPO) completes the CRE certification (7/7 domains: RF, PS, RDD, RM, RT, RPO, ML) — the 5th and final core certification delivered in this worklog. All 7 CRE content loaders now exist:
+  - src/lib/ref-content/cre.ts (structure + RF content + ISO 55000 + learning path)
+  - src/lib/ref-content/cre-probability-statistics.ts (PS — Task 17-CRE-PS)
+  - src/lib/ref-content/cre-reliability-design.ts (RDD — Task 17-CRE-RDD)
+  - src/lib/ref-content/cre-reliability-modeling.ts (RM)
+  - src/lib/ref-content/cre-reliability-testing.ts (RT)
+  - src/lib/ref-content/cre-production-operations.ts (RPO — this Task 17-CRE-RPO)
+  - src/lib/ref-content/cre-maintenance-logistics.ts (ML — Task 17-CRE-ML)
+Total CRE lessons delivered: 7 domains × 3 lessons = 21 full-spec 24-section lessons; 84 enriched questions; 7 KOs; ~21-42 References (shared by title across domains).
