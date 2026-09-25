@@ -1603,3 +1603,17 @@ Next actions:
 - Verify in the running web app that the PMP Business Environment (BE) domain shows 3 competencies and 3 deep lessons with 12 enriched questions (post-loadReference).
 - Coordinate with PPL (People) and PRC (Process) domain authors (already loaded by pmp.ts and pmp-process.ts) to ensure consistent cross-linking of strategic-alignment → project-execution → benefits-realization across the 3 PMP ECO domains.
 - Coordinate with the seed-runner owner to confirm pmp-business-environment.ts loadReference() is wired into the seed route via the existing dynamic-import pattern in src/app/api/admin/load-reference/route.ts (analogous to how pmp-process.ts and cre-reliability-modeling.ts are wired).
+
+---
+Task ID: 17-SS-CTRL2
+Agent: general-purpose
+Task: Author Six Sigma Control (C) phase deep scientific reference — 3 full 24-section lessons + KOs + 12 enriched questions.
+
+Work Log:
+- Read worklog + canonical pattern (six-sigma-define.ts) + spec.ts (24 keys) + prisma schema.
+- Control (C) domain exists in six-sigma.ts with NO competencies (verified code "C", name "Control", competencies: []).
+- Creating src/lib/ref-content/six-sigma-control.ts — content-only loader mirroring six-sigma-define.ts.
+- 3 Control competencies: "Statistical Process Control (SPC)", "Control Plans & Standardization", "Continuous Improvement & Visual Management".
+- 3 lessons: c-spc-charts, c-control-plan-sop, c-continuous-improvement-visual.
+- 6 real sources (ASQ CSSBB BOK L3, ASQ CSSGB BOK L3, Montgomery SQC L6, Breyfogle Implementing Six Sigma L7, Liker The Toyota Way L7, Imai Kaizen L7).
+- 12 enriched questions (4 per lesson: 3 MCQ + 1 TrueFalse), whyCorrect + whyOthersWrong + cognitiveLevel + scenario.
