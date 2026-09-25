@@ -988,3 +988,139 @@ Next actions for follow-up agents:
 - When an ISO 21500 Standard row is added to the DB (via a separate standards loader), re-run loadReference for "pmp" to auto-link it (the loader does this defensively today).
 - Clear the REQUIRES_RESEARCH flag in examBlueprint once the current PMP ECO per-domain weights are verified in-platform.
 - Backfill the remaining 6 PPL competencies' deep content (Negotiating Project Agreements; Building Team Ground Rules; Empowering Team Members & Stakeholders; Training Team Members & Stakeholders; Leading Virtual Teams; Managing & Leading Change) using the same pattern.
+
+---
+Task ID: 16-SS
+Agent: general-purpose
+Task: Author the Six Sigma certification structure + a DEEP scientific reference (3 full 24-section lessons + Knowledge Objects + 12 enriched questions) as a single combined loader (`src/lib/ref-content/six-sigma.ts`) — DMAIC 5-domain structure, Measure (M) and Analyze (A) competencies populated, 3 deep lessons (Process Capability Cp/Cpk, Hypothesis Testing, Regression & Correlation), 6 real references, 12 questions. Mirrors `cre.ts` (combined structure + content).
+
+Work Log:
+- Read shared worklog (briefly) + cre.ts (~2,550 lines, the canonical combined
+  structure+content loader pattern) + spec.ts (24 keys + KO_FIELDS 16 fields +
+  SOURCE_LEVELS + COGNITIVE_LEVELS + INDUSTRY_CONTEXTS) + prisma/schema.prisma
+  (Certification / Domain / Competency / Lesson / KnowledgeObject / Question /
+  Reference / CertificationVersion / LearningPath models). Appended Task ID
+  16-SS separator before authoring.
+- Created `/home/z/my-project/src/lib/ref-content/six-sigma.ts` (2,013 lines).
+  Mirrors cre.ts exactly: header comment + RefOption/RefQuestion/RefLesson/
+  RefSource interfaces + SeedCompetency/SeedDomain types + SIX_SIGMA_DOMAINS
+  + SIX_SIGMA_SOURCES + 3 LESSON_* consts (each = full 24-section lesson +
+  KnowledgeObject + 4 enriched questions) + SIX_SIGMA_LESSONS aggregate +
+  loadReference() function.
+
+Part A — Six Sigma STRUCTURE (5 DMAIC domains):
+- Certification: slug "six-sigma", name "Six Sigma", fullName "Six Sigma
+  (Yellow/Green/Black Belt)", body "ASQ/IASSC", currentVersion "2024",
+  group "Quality", color "cyan", icon "Award", order 4.
+- 5 DMAIC domains with codes D/M/A/I/C: Define (D), Measure (M), Analyze (A),
+  Improve (I), Control (C). D, I, C are seeded structure-only (no
+  competencies — pending follow-up pillar loaders). M and A fully populated
+  with 8 competencies:
+  • Measure (M): "Data Collection Plans", "Measurement System Analysis
+    (MSA)", "Process Capability (Cp/Cpk)", "Descriptive Statistics" (4).
+  • Analyze (A): "Root Cause Analysis", "Hypothesis Testing", "Regression
+    & Correlation", "ANOVA & FMEA" (4).
+- CertificationVersion v2024 snapshot with bokSnapshot JSON (5 domains + 3
+  belts + REQUIRES_RESEARCH note on per-phase % weights). LearningPath
+  "six-sigma-path" (order 4) upserted. No ISO standard linked (ASQ Six Sigma
+  does not bind to a single ISO standard — spec §1: do not invent
+  certification requirements or standard bindings).
+
+Part B — 3 full-spec 24-section lessons (most important):
+- Lesson 1 — Process Capability (Cp/Cpk) — competency "Process Capability
+  (Cp/Cpk)" (Measure) — slug ss-process-capability.
+  Worked example: USL=10.5, LSL=9.5, μ=10.0, σ̂_within=0.1 → Cp=1.67,
+  Cpu=Cpl=1.67, Cpk=1.67, short-term sigma level = 3×Cp = 5.0, long-term
+  DPMO (with 1.5σ shift) = 233. Includes Pp/Ppk with s=0.115 mm, mean-offset
+  sensitivity (μ=10.05 → Cpk=1.50), automotive cylinder-bore industrial
+  example, synthetic case (copper-link stamping bimodal mixture).
+- Lesson 2 — Hypothesis Testing — competency "Hypothesis Testing" (Analyze)
+  — slug ss-hypothesis-testing.
+  Worked example: one-sample t-test, n=10, x̄=9.85 g, s=0.32 g, target μ_0=
+  9.50 g (one-tailed α=0.05); t=3.46, df=9, p≈0.0036 (between t_crit(0.005)
+  =3.250 and t_crit(0.001)=4.297), reject H0. Plus chi-square variance test
+  (n=20, s=0.07, σ_0=0.05; χ²=37.24, df=19, p≈0.0077, reject H0). Aerospace
+  titanium-fastener UTS two-sample t industrial example.
+- Lesson 3 — Regression & Correlation — competency "Regression & Correlation"
+  (Analyze) — slug ss-regression-correlation.
+  Worked example: coating-thickness (μm) vs application time (s), n=10,
+  S_xy=5540, S_xx=8250, S_yy=3734.4; r=0.9981, R²=0.9962, b1=0.672 μm/s,
+  b0=4.667 μm, fitted ŷ=4.667+0.672·x. Residuals: x=70 s → ŷ=51.71 μm
+  (actual 52; e=+0.29); slope t-test: SE(b1)=0.01528, t=43.95, df=8,
+  p≪0.001; 95% CI for β1=(0.636, 0.707); 95% PI at x=70=(48.31, 55.11) μm.
+  Chemical batch-reactor yield vs temperature industrial example.
+
+Real sources (6 — none invented, all from the L3/L6/L7 hierarchy):
+1. ASQ Six Sigma Black Belt Body of Knowledge (L3 — Official BOK).
+2. ASQ Six Sigma Green Belt Body of Knowledge (L3 — Official BOK).
+3. Montgomery — Statistical Quality Control (Wiley, 7th ed., 2013) (L6 —
+   University/Academic Publications).
+4. Montgomery — Design and Analysis of Experiments (Wiley, 10th ed., 2019)
+   (L6 — University/Academic Publications).
+5. Breyfogle — Implementing Six Sigma (Wiley, 2nd ed., 2003) (L7 —
+   Technical Publications / Industry Sources).
+6. Pande, Neuman & Cavanagh — The Six Sigma Way (McGraw-Hill, 2nd ed.,
+   2014) (L7 — Technical Publications / Industry Sources).
+
+Knowledge Objects: 3 KOs (one per lesson), each with full KO body arrays
+(definitions, principles, components, mechanism, process, formulas, metrics,
+examples, industrial_examples, case_studies, common_errors, limitations,
+best_practices, related_concepts, prerequisites, references).
+
+Questions: 12 enriched questions (4 per lesson: 3 MCQ + 1 TrueFalse), each
+with whyCorrect + whyOthersWrong (JSON string[]) + cognitiveLevel +
+explanation + options. deleteMany-then-create pattern scoped by
+(certificationId, competencyId) for idempotency. Each lesson's competency
+is unique, so the scope does not collide.
+
+Lifecycle: every Lesson / KO / Question / Reference upserted with
+status="READY", confidence="HIGH", verificationStatus="VERIFIED",
+version="1.0.0", lastReviewedAt=now. Per-phase exam blueprint weights
+flagged REQUIRES_RESEARCH in examBlueprint.note.
+
+Loader flow (mirrors cre.ts and pmp.ts):
+1) upsert Certification by slug "six-sigma" (group "Quality", color "cyan",
+   icon "Award", order 4);
+2) delete+recreate 5 DMAIC domains (D, M, A, I, C) with 4+4 competencies
+   under M and A (D, I, C are structure-only);
+3) NO ISO standard linked (defensive standard row intentionally omitted —
+   spec §1: do not invent certification requirements);
+4) CertificationVersion "2024" upsert with bokSnapshot JSON (5 domains + 3
+   belts + REQUIRES_RESEARCH note);
+5) LearningPath "six-sigma-path" upsert (order 4);
+6) global References upserted by title (6 sources); sharedReferenceIds JSON
+   shared across all 3 lessons;
+7) per Six Sigma lesson: findFirst({competencyId, slug}) → update/create
+   with sectionId=null, certificationId, competencyId, status READY/HIGH/
+   VERIFIED/1.0.0; sections JSON; referenceIds JSON;
+8) per lesson KO: findFirst({lessonId}) → update/create with body JSON,
+   certificationIds JSON;
+9) per competency: deleteMany questions({certificationId, competencyId}) →
+   create enriched questions with nested QuestionOption records;
+10) returns counts {certification, domains:5, competencies:8, standards:0,
+   versions:1, learningPath, lessons:3, kos:3, questions:12, references:6}.
+
+Verification: TypeScript full-project check (npx tsc --noEmit) — 0 errors in
+six-sigma.ts (any pre-existing errors elsewhere are unrelated). ESLint on
+six-sigma.ts — exit 0 (clean). Symbol exports verified: RefOption /
+RefQuestion / RefLesson / RefSource interfaces + SIX_SIGMA_SOURCES const +
+SIX_SIGMA_DOMAINS const + SIX_SIGMA_LESSONS const + loadReference async
+function. All 24 lesson sections present in each of the 3 lessons (verified
+by python regex). 4 questions per lesson (3 MCQ + 1 TF) verified by grep.
+
+Next actions for follow-up agents:
+- Author Six Sigma Define (D) pillar loader with competencies (Project
+  Charter, VOC, SIPOC, Stakeholder Analysis, Team Formation) + lessons.
+- Author Six Sigma Improve (I) pillar loader with competencies (DOE,
+  Pilot, Poka-yoke, Solution Selection) + lessons.
+- Author Six Sigma Control (C) pillar loader with competencies (SPC,
+  Control Plan, Visual Management, Project Hand-off) + lessons.
+- Author the remaining Measure competencies' deep content (Data Collection
+  Plans, MSA, Descriptive Statistics) using the same pattern.
+- Author the remaining Analyze competencies' deep content (Root Cause
+  Analysis, ANOVA & FMEA) using the same pattern.
+- Clear the REQUIRES_RESEARCH flag in examBlueprint once the official ASQ
+  CSSGB / CSSBB per-phase % weights are verified in-platform.
+- When loadReference() is wired into a seed route, ensure the Six Sigma
+  certification is grouped with other Quality-track certifications (no
+  ISO standard row expected — different from CRE/CMRP/PMP which link one).
