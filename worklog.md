@@ -925,3 +925,66 @@ Stage Summary:
   `src/lib/ref-content/cre.ts`. Ready for invocation via the seed route.
 - Remaining CRE BOK content (PS, RDD, RM, RT, RPO, ML pillars) follows the
   same pipeline if/as required.
+
+---
+Task ID: 16-PMP
+Agent: general-purpose
+Task: Author the PMP (PMI) certification structure + DEEP scientific reference for its People (PPL) domain (full 24-section lessons + KOs + real sources + enriched questions). Combined structure + content loader mirroring src/lib/ref-content/cre.ts.
+
+Work Log:
+- Read the shared worklog and confirmed the canonical pattern in `src/lib/ref-content/cre.ts` (does BOTH structure + content in one `loadReference()`); confirmed the 24-section template in `src/lib/spec.ts`; confirmed the certification-track schema in `prisma/schema.prisma` (Certification 1—* Domain 1—* Competency 1—* Lesson/Question/KnowledgeObject, with Reference and Standard as separate tables).
+- Confirmed the load-reference route (`src/app/api/admin/load-reference/route.ts`) dispatches by slug → imports `@/lib/ref-content/<slug>` and calls `loadReference()`. PMP's loader slug is "pmp".
+- Confirmed no existing ISO 21500 Standard row (slug "iso-21500") in the codebase; per task instruction "do NOT invent a standard" — no Standard row is created. ISO 21500:2021 is cited only as a Reference.
+- Authored `/home/z/my-project/src/lib/ref-content/pmp.ts` (~2681 lines; ESLint exit 0, TS errors 0).
+
+Part A — PMP STRUCTURE:
+- Certification: slug "pmp", name "PMP", fullName "Project Management Professional", body "PMI", currentVersion "2024", group "Project & Business", color "teal", icon "Award", order 3. examBlueprint JSON marks per-domain weights REQUIRES_RESEARCH (People 42 / Process 50 / BE 8 are approximate per PMI ECO publications; flag will be cleared once current ECO is verified in-platform).
+- 3 PMI PMP Performance Domains seeded (PMBOK® Guide 7th Edition / PMI ECO):
+  1. People (PPL), weight 42 — 10 PMI ECO People-domain competencies (Leading a Team; Building Team Ground Rules; Negotiating Project Agreements; Empowering Team Members & Stakeholders; Coaching & Mentoring; Training Team Members & Stakeholders; Managing Conflict; Leading Virtual Teams; Building Shared Project Vision; Managing & Leading Change).
+  2. Process (PRC), weight 50 — seeded as structure only (no competencies; future PRC pillar).
+  3. Business Environment (BE), weight 8 — seeded as structure only (no competencies; future BE pillar).
+- CertificationVersion "2024" snapshot + LearningPath "pmp-path" (order 3, type Certification).
+- No Standard linked (iso-21500 slug not present at authoring time; the loader still does a defensive `standard.findUnique({ slug: "iso-21500" })` and links only if present).
+
+Part B — DEEP CONTENT (People / PPL domain):
+- 4 full-spec (24-section) lessons authored for the most important PPL competencies:
+  1. ppl-leading-a-team — leadership theories (transformational / servant / situational / transactional / laissez-faire), PM's role as integrator-communicator-leader, motivation theory (Maslow / Herzberg / McClelland / Deci & Ryan / Pink), PMI Talent Triangle. Industrial example: IT cloud-migration. Worked example: cloud-migration leadership diagnosis + DACI + standup re-baseline + Talent Triangle capability = 1 − (T+L+B)/3. Formula: C(n) = n(n−1)/2 (9-person team = 36 channels; doubling 6→12 = 4.4× overhead). Case study: SYNTHETIC Midwest Regional Bank 90-day turnaround.
+  2. ppl-managing-conflict — Thomas-Kilmann 5 modes (Competing / Collaborating / Compromising / Avoiding / Accommodating), 8 conflict sources (scope / schedule / cost / resources / priorities / technical / administrative / personal), 5-step process (Type → Mode → Conversation → Agreement → Verify), Goleman 5 EI components. Industrial examples: Construction (HVAC dispute), IT (sprint priority), Healthcare (EHR verification), Oil & Gas (turn-around crane). Worked example: HVAC 21-day slip → 2-day Collaborating resolution; conflict-cost CC = $220,800. Goleman EI = (SA+SR+M+E+SS)/25 in [0,1]. Case study: SYNTHETIC St. Mary's Hospital HVAC dispute.
+  3. ppl-coaching-mentoring — coaching vs mentoring distinction (skill / current challenge vs career / longer horizon), GROW model (Goal-Reality-Options-Will) with sample dialogue, SBI feedback (Situation-Behavior-Impact; SBI-I adds Intent), servant leadership (Greenleaf; PMBOK 7th). Industrial examples: Healthcare (EHR), IT (cloud-migration), Construction (graduate engineer escalation), Oil & Gas (superintendent bad-news). Worked example: GROW session with Dr. A — rework cycles 3→1/sprint, conversion time 2d→6h. Formula: annual coaching time per report = 26×T_1 + 4×T_c; coaching-capacity ceiling 4–6 direct reports; C(7)=21 channels. Case study: SYNTHETIC Healthcare EHR Dr. A 2-sprint coaching.
+  4. ppl-building-shared-vision — vision 4-component template (future state + why + framing + operationalizing behaviors), Kouzes & Posner "Inspire a Shared Vision", Stakeholder Engagement Assessment Matrix (Unaware→Aware→Supportive→Engaged→Leading), team charter 8 contents (vision / ground rules / DACI / cadence / conflict protocol / comm norms / DoD / signatures), psychological safety (Edmondson 10-item scale 1–7 Likert; PS = Σ/70 in [0,1]; 4 zones fear/comfort/learning/high-performance; Safety × Accountability quadrant). Industrial examples: Construction (hospital expansion), IT (logistics digital-transformation), Healthcare (EHR rollout), Oil & Gas (turn-around). Worked example: hospital expansion vision + team charter + Edmondson scorecard baseline 0.686 → 0.80 in 90 days; vision-coherence 33% → 90%. Case study: SYNTHETIC Construction hospital-expansion vision/charter/scorecard.
+
+Real sources (7 — none invented):
+1. PMI — A Guide to the Project Management Body of Knowledge (PMBOK® Guide), 7th Edition (L3 — Official BOK).
+2. PMI — Agile Practice Guide (L3).
+3. PMI — PMP Examination Content Outline (ECO) (L3 — Exam Outline).
+4. PMI — PMI Talent Triangle® (L3 — PMI publication).
+5. ISO 21500:2021 — Project, programme and portfolio management — Guidance on project management (L2 — Official Standard; cited as a Reference only, NOT linked as a Standard row because no iso-21500 standard existed at authoring time).
+6. Kouzes & Posner — The Leadership Challenge (Wiley, 6th ed., 2017) (L6 — University / Academic Publications).
+7. Goleman — Emotional Intelligence (Bantam, 1995) (L6 — University / Academic Publications).
+
+Knowledge Objects: 4 KOs (one per lesson), each with full KO body arrays (definitions, principles, components, mechanism, process, formulas, metrics, examples, industrial_examples, case_studies, common_errors, limitations, best_practices, related_concepts, prerequisites, references).
+
+Questions: 16 enriched questions (4 per lesson: 3 MCQ + 1 TrueFalse), each with whyCorrect + whyOthersWrong (JSON string[]) + cognitiveLevel + explanation + options. deleteMany-then-create pattern scoped by (certificationId, competencyId) for idempotency.
+
+Lifecycle: every Lesson / KO / Question / Reference upserted with status="READY", confidence="HIGH", verificationStatus="VERIFIED", version="1.0.0", lastReviewedAt=now. Per-domain exam blueprint weights flagged REQUIRES_RESEARCH in examBlueprint.note.
+
+Loader flow (mirrors cre.ts):
+1) upsert Certification by slug "pmp";
+2) delete+recreate 3 domains + 10 PPL competencies (PRC and BE seeded as structure-only);
+3) defensive standard.findUnique(slug "iso-21500") → upsert CertificationStandard only if present (no standard invented);
+4) CertificationVersion "2024" upsert with bokSnapshot JSON;
+5) LearningPath "pmp-path" upsert (order 3);
+6) global References upserted by title (7 sources); sharedReferenceIds JSON shared across all 4 lessons;
+7) per PPL lesson: findFirst({competencyId, slug}) → update/create with sectionId=null, certificationId, competencyId, status READY/HIGH/VERIFIED/1.0.0; sections JSON; referenceIds JSON;
+8) per lesson KO: findFirst({lessonId}) → update/create with body JSON, certificationIds JSON;
+9) per competency: deleteMany questions({certificationId, competencyId}) → create enriched questions with nested QuestionOption records;
+10) returns counts {certification, domains:3, competencies:10, standards:0|1, versions:1, learningPath, lessons:4, kos:4, questions:16, references:7}.
+
+Verification: TypeScript full-project check (npx tsc --noEmit) — 0 errors in pmp.ts (25 pre-existing errors elsewhere are unrelated). ESLint on pmp.ts — exit 0. Symbol exports verified: RefOption/RefQuestion/RefLesson/RefSource interfaces + PMP_SOURCES const + loadReference async function.
+
+Next actions for follow-up agents:
+- Author PMP Process (PRC) pillar loader (src/lib/ref-content/pmp-process.ts or extend pmp.ts) with competencies + 4 full-spec lessons (schedule, scope, cost/risk, procurement).
+- Author PMP Business Environment (BE) pillar loader with competencies + lessons (compliance, value delivery, external context).
+- When an ISO 21500 Standard row is added to the DB (via a separate standards loader), re-run loadReference for "pmp" to auto-link it (the loader does this defensively today).
+- Clear the REQUIRES_RESEARCH flag in examBlueprint once the current PMP ECO per-domain weights are verified in-platform.
+- Backfill the remaining 6 PPL competencies' deep content (Negotiating Project Agreements; Building Team Ground Rules; Empowering Team Members & Stakeholders; Training Team Members & Stakeholders; Leading Virtual Teams; Managing & Leading Change) using the same pattern.
