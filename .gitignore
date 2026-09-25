@@ -66,3 +66,5 @@ progress-check.png
 # Local scratch dirs
 download/
 upload/
+# EngiSuite (separate project, primary)
+engisuite-analytics/
