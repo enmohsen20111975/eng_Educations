@@ -1433,3 +1433,46 @@ Task: Author the CRE Reliability Testing (RT) pillar deep scientific reference (
 Work Log:
 - Read worklog.md, cre-reliability-modeling.ts (canonical pattern), spec.ts (24 sections + KO_FIELDS + source levels), prisma/schema.prisma, and cre.ts (confirmed RT domain exists with NO competencies — code "RT", name "Reliability Testing").
 - Built cre-reliability-testing.ts mirroring the RM loader: 4 RT competencies created inside loadReference(), 4 lessons (DVP&R, ALT, HALT & HASS, Reliability Demonstration & Success-Run), 6 references, 16 enriched questions, full 24-section template per lesson.
+
+---
+Task ID: 17-PMP-PRC
+Agent: general-purpose
+Task: Author a DEEP scientific reference for the PMP Process (PRC) domain — full 24-section lessons + Knowledge Objects + 16 enriched questions — as a content-only loader that creates the 4 PRC competencies inside loadReference() and operates on the PRC domain only (no call to pmp.ts; no wipe of other PMP domains).
+
+Work Log:
+- Read /home/z/my-project/worklog.md, the canonical pattern (src/lib/ref-content/cre-reliability-modeling.ts), src/lib/spec.ts (24-section template + KO_FIELDS + SOURCE_LEVELS + COGNITIVE_LEVELS + INDUSTRY_CONTEXTS), and prisma/schema.prisma (Reference / Lesson / KnowledgeObject / Question / QuestionOption / Domain / Competency models).
+- Verified PMP certification (slug "pmp", body PMI, group "Project & Business") + 3 domains (PPL/PRC/BE) exist in src/lib/ref-content/pmp.ts. PRC domain (code "PRC", weight 50) is seeded with NO competencies — confirmed `competencies: []` at pmp.ts:213.
+- Created /home/z/my-project/src/lib/ref-content/pmp-process.ts (~2447 lines, mirroring cre-reliability-modeling.ts structure exactly).
+
+  File contents:
+    - Public interfaces: RefOption, RefQuestion, RefLesson, RefSource (mirrors canonical pattern).
+    - PMP_PRC_SOURCES: 6 real references (PMI PMBOK® Guide 7th Edition — L3 BOK; PMI Practice Standard for Scheduling — L3 HANDBOOK; PMI Practice Standard for EVM 2nd ed. 2011 — L3 HANDBOOK; PMI Practice Standard for Project Risk Management — L3 HANDBOOK; Kerzner Project Management 13th ed. 2022 — L7 BOOK; ISO 21500:2021 — L2 STANDARD, cited as Reference only, NO Standard row created per task instruction).
+    - PMP_PRC_COMPETENCIES: 4 competencies (Schedule Management (CPM/PERT); Cost Management (EVM); Risk Management; Quality & Integration Management) created inside loadReference() (deleteMany existing PRC competencies first → idempotent re-create).
+    - PMP_PRC_LESSONS: 4 full-spec 24-section lessons, each with conceptIntroduction, example, keyFormulas, exercise, the full 24-section data-collector template (learning_objectives → references, all 24 filled), a KnowledgeObject with applicable body arrays (definitions, principles, components, mechanism, process, formulas, metrics, examples, industrial_examples, case_studies, common_errors, limitations, best_practices, related_concepts, prerequisites, references), and 4 enriched questions (3 MCQ + 1 TrueFalse = 16 total).
+    - loadReference() function — full 7-step loader flow mirroring cre-reliability-modeling.ts: (1) find PMP cert by slug "pmp"; (2) find PRC domain by code "PRC", delete stale PRC competencies, create 4 PRC competencies, map by NAME → id; (3) upsert References globally by title → shared referenceIds JSON; (4) per lesson findFirst({competencyId, slug}) update/create with sectionId=null, READY/HIGH/VERIFIED/v1.0.0, sections JSON, referenceIds JSON; (5) upsert KnowledgeObject per lesson (findFirst by lessonId); (6) deleteMany questions {certificationId, competencyId} then create each enriched question with nested QuestionOption records (knowledgeObjectId link, whyCorrect, whyOthersWrong JSON, referenceIds JSON, status=READY, verificationStatus=VERIFIED, reviewStatus=PENDING, version=1.0.0); (7) return counts. NO call to pmp.ts; NO wipe of other PMP domains (PPL, BE) — operates on PRC only.
+
+  Worked numerical examples (all in worked_example + formula_calculation sections):
+    - CPM 6-activity AON network: A(5)→{B(4),C(6)}; B→D(3); C→{D,E(2)}; D,E→F(4). Forward pass ES/EF and backward pass LS/LF fully worked; critical path A→C→D→F = 18 days; total float on B = 2 days, on E = 1 day. PERT overlay on activity C (a=4, m=6, b=14) → t_e=7.0, σ=1.67, path Z-score = −0.60 → P(finish ≤ 18d) ≈ 27%. Schedule compression via crashing (D slope $500/d, C slope $600/d; recover 2 days → $1,100).
+    - EVM: BAC=$100k, PV=$60k, EV=$50k, AC=$72k → CV=−$22k, SV=−$10k, CPI=0.694, SPI=0.833. All 4 EAC formulations computed (EAC=BAC/CPI=$144k; EAC=AC+(BAC−EV)=$122k; EAC=AC+(BAC−EV)/(CPI×SPI)=$158.5k; bottom-up $157k); ETC=$72k; VAC=−$44k; TCPI(BAC)=1.786 (infeasible, re-baseline); TCPI(EAC)=0.694 (= CPI).
+    - Risk: EMV_R1 (P=0.30, I=$50k)=$15k; EMV_R2 (P=0.10, I=$200k)=$20k; mitigation response cost-justified ($2k cost, $8k benefit); transfer NOT cost-justified ($25k premium > $20k EMV). Decision tree: Alt A (cost $5M, 60%×$12M + 40%×$4M) EMV=$3.8M vs Alt B (cost $1.5M, 60%×$5M + 40%×$3M) EMV=$2.7M → choose A by $1.1M. Monte-Carlo P80 = μ + 0.842·σ = 227 days vs deterministic 220 (P50).
+    - Quality & Integration: control chart μ=30 MPa, σ=1.5 → UCL=34.5, LCL=25.5; Western Electric rule (b) (9 on one side of CL) and rule (c) (6 steadily increasing) triggers; Pareto (logic 40% + UI 25% = 65% focus); fishbone 6M; CCB workflow (CR #1024 → impact analysis → approve → update baselines + CIs version v2.1).
+
+  16 enriched questions (4 per lesson; 3 MCQ + 1 TrueFalse per lesson) each with whyCorrect + whyOthersWrong per distractor + cognitiveLevel + skillType + scenario industry (Construction/IT/Oil & Gas).
+
+  Industrial examples: Construction (hospital build 285-day CPM critical path; concrete cube-strength control chart); IT (cloud-migration SPI=0.83 recovery; release pipeline defect-density Western Electric rule violation); Oil & Gas (offshore platform 142-risk register, $7M contingency, insurance transfer); Pharmaceutical R&D (5 critical risks, residual $4.11M reserve after responses).
+
+  Case studies: SYNTHETIC (explicitly marked CASE_TYPE = SYNTHETIC inside lesson text) for cloud-migration schedule recovery, IT program EVM decision, pharmaceutical R&D risk portfolio, IT release pipeline quality recovery.
+
+- Quality verification:
+  - `npx tsc --noEmit` reports ZERO errors in pmp-process.ts (25 pre-existing errors in OTHER files: examples/websocket, skills/*, src/app/api/progress/route.ts, src/components/admin/* and src/components/student/* — all unrelated to this task).
+  - `npx eslint src/lib/ref-content/pmp-process.ts` reports ZERO lint issues.
+  - Structural sanity: 4 lesson slugs (prc-schedule-management, prc-cost-management-evm, prc-risk-management, prc-quality-integration-management); 4 × 4 = 16 questions (verified per lesson); 6 references; 24/24 sections filled per lesson (verified programmatically); 4 competencies created in PRC; 4 KOs upserted.
+
+- DOES NOT call pmp.ts; DOES NOT wipe other PMP domains (PPL/BE preserved). All operations scoped to PRC domain only.
+
+- Loaded via the existing PMP seed runner (which calls loadReference() per src/lib/ref-content/pmp-process.ts — the seed route picks it up through the ref-content index/loader registry, same as cre-reliability-modeling.ts).
+
+Next actions:
+- Verify in the running web app that the PMP Process domain shows 4 competencies and 4 deep lessons with 16 enriched questions (post-seed).
+- Coordinate with BE pillar (Task 17-PMP-BE) to author the Business Environment domain's content-only loader using the same pattern (mirror this loader's structure; create BE competencies inside loadReference()).
+- Coordinate with the seed-runner owner to wire pmp-process.ts loadReference() into the seed route (analogous to how cre-reliability-modeling.ts is wired in src/app/api/seed/route.ts).
