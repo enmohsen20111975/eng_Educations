@@ -1424,3 +1424,12 @@ Next actions for follow-up agents:
   competency wipe on subsequent re-runs — see "Recommended approach"
   above.
 
+
+---
+Task ID: 17-CRE-RT
+Agent: general-purpose
+Task: Author the CRE Reliability Testing (RT) pillar deep scientific reference (src/lib/ref-content/cre-reliability-testing.ts) — 4 lessons × 24 sections + KOs + 16 enriched questions + 6 real sources, content-only loader mirroring cre-reliability-modeling.ts.
+
+Work Log:
+- Read worklog.md, cre-reliability-modeling.ts (canonical pattern), spec.ts (24 sections + KO_FIELDS + source levels), prisma/schema.prisma, and cre.ts (confirmed RT domain exists with NO competencies — code "RT", name "Reliability Testing").
+- Built cre-reliability-testing.ts mirroring the RM loader: 4 RT competencies created inside loadReference(), 4 lessons (DVP&R, ALT, HALT & HASS, Reliability Demonstration & Success-Run), 6 references, 16 enriched questions, full 24-section template per lesson.
