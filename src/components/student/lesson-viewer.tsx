@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Database,
+  Award,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -66,9 +67,32 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
       />
     );
 
-  const { section, questions } = lesson;
-  const grad = accentGradient(section?.color);
-  const soft = accentSoft(section?.color);
+  const { section, certification, competency, questions } = lesson;
+  // Build a unified context that works for both general-track (section) and
+  // cert-track (certification + competency) lessons.
+  const ctx = section
+    ? {
+        title: section.title,
+        icon: section.icon,
+        color: section.color,
+        siblings: (section.lessons ?? []) as { id: string; title: string; order: number }[],
+        back: () => store.openSection(section.id),
+        quiz: () => store.openQuiz(section.id),
+        quizLabel: "Quiz this section",
+        crumbs: `${section.title}`,
+      }
+    : {
+        title: certification?.name || "Certification",
+        icon: "Award",
+        color: certification?.color || "emerald",
+        siblings: (competency?.lessons ?? []) as { id: string; title: string; order: number }[],
+        back: () => store.openCertifications(),
+        quiz: () => store.openQuiz(null), // cert quiz handled globally
+        quizLabel: certification ? `Quiz ${certification.name}` : "Take a quiz",
+        crumbs: `${certification?.name ?? ""}${competency ? " · " + competency.name : ""}`,
+      };
+  const grad = accentGradient(ctx.color);
+  const soft = accentSoft(ctx.color);
   const statusMeta = STATUS_META[(lesson.status as ContentStatus) || "DRAFT"];
   const hasFullTemplate = !!lesson.sections;
   const sectionsObj: Record<string, string> | null = lesson.sections
@@ -76,8 +100,7 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
     : null;
 
   // sibling navigation
-  const siblings: { id: string; title: string; order: number }[] =
-    section?.lessons ?? [];
+  const siblings = ctx.siblings;
   const idx = siblings.findIndex((l) => l.id === lesson.id);
   const prev = idx > 0 ? siblings[idx - 1] : null;
   const next = idx >= 0 && idx < siblings.length - 1 ? siblings[idx + 1] : null;
@@ -87,10 +110,10 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => store.openSection(section.id)}
+        onClick={ctx.back}
         className="mb-4 gap-1"
       >
-        <ArrowLeft className="h-4 w-4" /> {section.title}
+        <ArrowLeft className="h-4 w-4" /> {ctx.title}
       </Button>
 
       {/* Lesson header */}
@@ -98,11 +121,15 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
         <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
             <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm", grad)}>
-              <SectionIcon name={section.icon} className="h-6 w-6" />
+              {section ? (
+                <SectionIcon name={section.icon} className="h-6 w-6" />
+              ) : (
+                <Award className="h-6 w-6" />
+              )}
             </span>
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {section.title} · Lesson {String(idx + 1).padStart(2, "0")}
+                {ctx.crumbs} {idx >= 0 ? `· Lesson ${String(idx + 1).padStart(2, "0")}` : ""}
               </p>
               <h1 className="mt-1 text-2xl font-bold tracking-tight">{lesson.title}</h1>
               {lesson.titleAr ? (
@@ -138,8 +165,8 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
               </div>
             </div>
           </div>
-          <Button onClick={() => store.openQuiz(section.id)} className="gap-2 shrink-0">
-            <ListChecks className="h-4 w-4" /> Quiz this section
+          <Button onClick={ctx.quiz} className="gap-2 shrink-0">
+            <ListChecks className="h-4 w-4" /> {ctx.quizLabel}
           </Button>
         </div>
       </Card>
@@ -255,7 +282,7 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
                 variant="outline"
                 size="sm"
                 className="mt-3 w-full gap-2"
-                onClick={() => store.openQuiz(section.id)}
+                onClick={ctx.quiz}
               >
                 <ListChecks className="h-4 w-4" /> Take quiz ({questions.length})
               </Button>
@@ -267,7 +294,7 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
       {/* Prev / Next */}
       <div className="mt-8 flex items-center justify-between gap-4">
         {prev ? (
-          <Button variant="outline" onClick={() => store.openLesson(prev.id, section.id)} className="gap-2">
+          <Button variant="outline" onClick={() => store.openLesson(prev.id, section?.id ?? undefined)} className="gap-2">
             <ChevronLeft className="h-4 w-4" /> <span className="hidden sm:inline">Previous</span>
           </Button>
         ) : (
@@ -277,7 +304,7 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
           Lesson {idx + 1} of {siblings.length || idx + 1}
         </span>
         {next ? (
-          <Button variant="outline" onClick={() => store.openLesson(next.id, section.id)} className="gap-2">
+          <Button variant="outline" onClick={() => store.openLesson(next.id, section?.id ?? undefined)} className="gap-2">
             <span className="hidden sm:inline">Next</span> <ChevronRight className="h-4 w-4" />
           </Button>
         ) : (

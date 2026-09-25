@@ -15,12 +15,14 @@ export async function POST(req: Request) {
   }
   const studentKey = getStudentKey(req);
   const sectionId: string | undefined = body?.sectionId || undefined;
+  const certificationId: string | undefined = body?.certificationId || undefined;
   const difficulty: string | undefined = body?.difficulty || undefined;
   const count: number = Math.max(1, Math.min(40, Number(body?.count) || 10));
 
   try {
     const where = {
       ...(sectionId ? { sectionId } : {}),
+      ...(certificationId ? { certificationId } : {}),
       ...(difficulty ? { difficulty } : {}),
     };
     const all = await db.question.findMany({

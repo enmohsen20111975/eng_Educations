@@ -6,10 +6,17 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const sectionId = url.searchParams.get("sectionId");
-  if (!sectionId) return bad("sectionId query param required");
+  const competencyId = url.searchParams.get("competencyId");
+  const certificationId = url.searchParams.get("certificationId");
+  if (!sectionId && !competencyId && !certificationId)
+    return bad("sectionId, competencyId, or certificationId query param required");
   try {
+    const where: any = {};
+    if (sectionId) where.sectionId = sectionId;
+    if (competencyId) where.competencyId = competencyId;
+    if (certificationId) where.certificationId = certificationId;
     const lessons = await db.lesson.findMany({
-      where: { sectionId },
+      where,
       orderBy: { order: "asc" },
       include: { _count: { select: { questions: true } } },
     });

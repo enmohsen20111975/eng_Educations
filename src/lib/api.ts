@@ -76,6 +76,10 @@ export const api = {
   deleteSection: (id: string) => apiDelete("/api/sections/" + id),
 
   lessonsBySection: (sectionId: string) => apiGet<Lesson[]>(`/api/lessons?sectionId=${sectionId}`),
+  lessonsByCompetency: (competencyId: string) =>
+    apiGet<Lesson[]>(`/api/lessons?competencyId=${competencyId}`),
+  lessonsByCertification: (certificationId: string) =>
+    apiGet<Lesson[]>(`/api/lessons?certificationId=${certificationId}`),
   lesson: (id: string) => apiGet<Lesson & { section: Section; questions: Question[] }>(`/api/lessons/${id}`),
   createLesson: (data: Partial<Lesson>) => apiPost<Lesson>("/api/lessons", data),
   updateLesson: (id: string, data: Partial<Lesson>) => apiPut<Lesson>("/api/lessons/" + id, data),

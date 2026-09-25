@@ -9,9 +9,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     const lesson = await db.lesson.findUnique({
       where: { id },
       include: {
-        section: true,
+        section: { include: { lessons: { orderBy: { order: "asc" }, select: { id: true, title: true, order: true } } } },
+        certification: true,
+        competency: { include: { lessons: { orderBy: { order: "asc" }, select: { id: true, title: true, order: true } } } },
+        module: true,
         questions: {
           orderBy: { createdAt: "asc" },
+          where: { OR: [{ status: "READY" }, { status: "DRAFT" }] },
           include: { options: { orderBy: { order: "asc" } } },
         },
       },

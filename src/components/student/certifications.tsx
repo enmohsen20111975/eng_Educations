@@ -240,25 +240,72 @@ function DomainCard({
       {open ? (
         <ul className="mt-3 space-y-1.5 border-t border-border pt-3">
           {domain.competencies.map((c) => (
-            <li key={c.id} className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-muted/40">
-              <span className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold", soft)}>
-                {String(c.order).padStart(2, "0")}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{c.name}</p>
-                {c.description ? (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{c.description}</p>
-                ) : null}
-              </div>
-              <div className="flex shrink-0 gap-2 text-[10px] text-muted-foreground">
-                <span>{c.lessonCount}L</span>
-                <span>{c.koCount}KO</span>
-                <span>{c.questionCount}Q</span>
-              </div>
-            </li>
+            <CompetencyRow key={c.id} competency={c} soft={soft} />
           ))}
         </ul>
       ) : null}
     </div>
+  );
+}
+
+function CompetencyRow({
+  competency,
+  soft,
+}: {
+  competency: CertTree["domains"][number]["competencies"][number];
+  soft: string;
+}) {
+  const store = useAppStore();
+  const [open, setOpen] = React.useState(false);
+  const { data: lessons, isLoading } = useQuery({
+    queryKey: ["lessons-competency", competency.id],
+    queryFn: () => api.lessonsByCompetency(competency.id),
+    enabled: open,
+  });
+  return (
+    <li className="rounded-lg">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-start gap-2 px-2 py-1.5 text-left hover:bg-muted/40"
+      >
+        <span className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold", soft)}>
+          {String(competency.order).padStart(2, "0")}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">{competency.name}</p>
+          {competency.description ? (
+            <p className="line-clamp-2 text-xs text-muted-foreground">{competency.description}</p>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 gap-2 text-[10px] text-muted-foreground">
+          <span>{competency.lessonCount}L</span>
+          <span>{competency.koCount}KO</span>
+          <span>{competency.questionCount}Q</span>
+        </div>
+      </button>
+      {open ? (
+        <div className="mt-1 ml-7 space-y-1 pb-1">
+          {isLoading ? (
+            <p className="px-2 py-1 text-[11px] text-muted-foreground">Loading lessons…</p>
+          ) : !lessons || lessons.length === 0 ? (
+            <p className="px-2 py-1 text-[11px] text-muted-foreground">No lessons authored yet (structure ready — content pipeline pending).</p>
+          ) : (
+            lessons.map((l, i) => (
+              <button
+                key={l.id}
+                onClick={() => store.openLesson(l.id, undefined)}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs hover:bg-accent"
+              >
+                <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded text-[9px] font-bold", soft)}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="flex-1 truncate font-medium">{l.title}</span>
+                <span className="text-[10px] text-muted-foreground">{l._count?.questions ?? 0}Q</span>
+              </button>
+            ))
+          )}
+        </div>
+      ) : null}
+    </li>
   );
 }
