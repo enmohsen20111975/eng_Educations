@@ -13,7 +13,8 @@ export function ParetoChartSimulation() {
     const vals = raw.split(",").map((s) => parseInt(s.trim())).filter((n) => !isNaN(n) && n > 0).sort((a, b) => b - a);
     const total = vals.reduce((s, v) => s + v, 0);
     let cum = 0;
-    return vals.map((v, i) => { cum += v; return { name: `#${i + 1}`, value: v, cumPct: +((cum / total) * 100).toFixed(1) }; });
+    const result = vals.map((v, i) => { cum += v; return { name: `#${i + 1}`, value: v, cumPct: +((cum / total) * 100).toFixed(1) }; });
+    return result;
   }, [raw]);
   const top80 = data.filter((d) => d.cumPct <= 80).length;
   return (
