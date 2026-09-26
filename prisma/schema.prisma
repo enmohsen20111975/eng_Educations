@@ -701,3 +701,41 @@ model VerificationToken {
   @@id([identifier, token])
   @@map("nextauth_verification_tokens")
 }
+
+// ============================================================================
+// EQUATION ENGINE (ported from EngiSuite-Analytics) — engineering calculators
+// ============================================================================
+
+model EquationCategory {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  equations   Equation[]
+  @@map("eq_categories")
+}
+
+model Equation {
+  id          String   @id @default(cuid())
+  categoryId  String?  
+  slug        String   @unique
+  name        String
+  description String?
+  formula     String   // e.g. "I = I_base * k_temp * k_group * k_install"
+  variables   String?  // JSON: input specs
+  outputs     String?  // JSON: output specs
+  tags        String?  // JSON string[]
+  source      String?
+  difficulty  String   @default("intermediate")
+  domain      String   // electrical | mechanical | civil | chemical | mathematics
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  category    EquationCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  @@index([categoryId])
+  @@index([domain])
+  @@map("eq_equations")
+}
