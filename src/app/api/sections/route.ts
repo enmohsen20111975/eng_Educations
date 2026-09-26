@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { parseOr400, ok, bad, serverError } from "@/lib/api-helpers";
+import { parseOr400, ok, bad, serverError, requireAdmin } from "@/lib/api-helpers";
 import { z } from "zod";
 
 export const revalidate = 3600; // ISR: cache knowledge content 1h (read-heavy, fast)
@@ -30,6 +30,7 @@ const sectionSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const guard = await requireAdmin(req); if (guard) return guard;
   let body: unknown;
   try {
     body = await req.json();

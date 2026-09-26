@@ -1989,3 +1989,121 @@ Top 3 priorities (recommended next-task scope):
    shared-contract bugs that block any safe refactor of the student UI.
 
 No files were modified during this audit.
+
+---
+Task ID: REAUDIT
+**Agent:** general-purpose (verification auditor)
+**Task:** Re-audit the Engineer's Educations project after the team's fixes; verify each of the
+11 fix items, find any NEW problems introduced, and report the verdict. Did NOT modify any
+files (read-only audit, except cleanup of a deliberately-bad test user created during a
+runtime probe — `not-an-email` was deleted).
+
+Work Log:
+- Read worklog + AUDIT section for context (16 original findings, 11 listed fix items).
+- Ran `bun run lint` → EXIT=0 (clean). The Next.js eslint config ignores
+  `engisuite-analytics/**` etc.
+- Ran `npx tsc --noEmit` → 1 error only, in `engisuite-analytics/.../circuit_breakers.ts`
+  (NOT part of the project — it's a sibling data dump folder ignored by eslint but
+  caught by tsconfig's `**/*.ts` include). The project's own `src/**` TS is clean.
+- Curl'd the live dev server (http://localhost:3000):
+  - GET /api/tracker → 200; sections=23; totals.lessons=151, totals.questions=653,
+    totals.knowledgeObjects=91 (WRONG — see N1), totals.overallReadiness=42%.
+    byStatus confirms 63 READY lessons, 367 READY questions.
+  - GET /api/certifications → 200; 5 certs (cmrp, cre, pmp, six-sigma, cama), all with
+    group set.
+  - POST /api/quiz/start {certificationId:<cmrp cuid>, count:3} → 200; attempt.created,
+    questions[3] all with sectionId=null + lessonId=null + explanation=null (hidden until
+    submit).
+  - POST /api/quiz/submit {attemptId, answers[3]} → 200; results[3] each carries
+    `explanation` field with the authored text. End-to-end verified.
+  - POST /api/auth/register {email:"not-an-email", password:"x"} → 200, returned a real
+    `id` — bad user created in DB (deleted after probe). Confirms fix #10 was NOT done.
+- Read the patched files end-to-end: tracker/route.ts, quiz.tsx, store.ts,
+  lesson-viewer.tsx, api.ts, types.ts, auth.ts, api-helpers.ts, admin/seed/route.ts,
+  admin/load-reference/route.ts, lessons/route.ts, lessons/[id]/route.ts,
+  questions/route.ts, questions/[id]/route.ts, progress/route.ts, quiz/start/route.ts,
+  quiz/submit/route.ts, auth/register/route.ts, cmrp.ts (+grep of cama/cre/pmp/six-sigma
+  loaders).
+- DB probes (Prisma) verified:
+  - All 5 certs have group populated (cmrp/cre/cama="Maintenance & Reliability",
+    pmp="Project & Business", six-sigma="Quality") — fix #9 ✓ at DB level.
+  - 2 QuizAttempt rows carry certificationId (one pre-existing, one from my probe);
+    both have sectionId=null — fix #13 ✓ at DB level.
+  - 0 duplicate cert-track question stems (sectionId=null AND certificationId!=null).
+  - KO breakdown: total=87, section-only (general-track)=4, cert-only (sectionId=null
+    AND certificationId!=null)=83. Tracker's totals.knowledgeObjects = 91 ≠ 87 →
+    double-count bug (N1).
+  - Cert-track Question exists (CRE "ASQ/IEC definition of reliability",
+    id=cmui7pr1802g1lszuhzx5o2me, sectionId=null) — fetchable by api.question(id); route
+    returns section=null, but api.ts types section as non-null (N3).
+
+### Re-audit table — original finding → status after fixes
+
+| # | Severity | Status       | Evidence |
+|---|----------|--------------|----------|
+| 1 | CRITICAL | **PARTIAL**  | `requireAdmin` only guards `/api/admin/seed` + `/api/admin/load-reference` (verified, 2 files matched by grep). The other ~10 mutating routes — `/api/sections` POST, `/api/sections/[id]` PUT/DELETE, `/api/lessons` POST, `/api/lessons/[id]` PUT/DELETE, `/api/questions` POST, `/api/questions/[id]` PUT/DELETE, `/api/lessons/[id]/status` PUT, `/api/questions/[id]/status` PUT, `/api/references` POST, `/api/matrix` POST — remain unauthenticated (`getServerSession` appears nowhere except nextauth/route.ts; only 2 files import `requireAdmin`). The audit's stated fix scope was only the 2 admin endpoints, so the explicit scope is FIXED, but the original finding's CRITICAL gap is still wide open. |
+| 2 | CRITICAL | **FIXED**    | `src/lib/auth.ts:64` `secret: process.env.NEXTAUTH_SECRET || (process.env.NODE_ENV === "production" ? undefined : "eng-edu-dev-local-only-not-for-prod")`. Production has no public fallback (returns `undefined` → NextAuth throws when used); dev-only local string. Audit criterion "no public prod fallback" satisfied. |
+| 3 | HIGH     | **PARTIAL**  | `src/app/api/tracker/route.ts:83-105` aggregates cert track: `certLessonsTotal`, `certQuestionsTotal`, `certKO`, `certLessonsReady`, `certQuestionsReady`. `totals.overallReadiness` line 104 = (general_ready + cert_ready) / (general_total + cert_total) × 100 = 42% ✓. **No TDZ, no duplicate `const totals`** (only one declaration at line 95). **NEW BUG N1**: line 89 `const certKO = await db.knowledgeObject.count()` counts ALL KOs (incl. general-track), then line 100 adds it to per-section KO sum → double-count. Tracker reports 91, true value 87. |
+| 4 | HIGH     | **PARTIAL**  | `src/lib/types.ts:34,65,104` `Lesson.sectionId`, `KnowledgeObject.sectionId`, `Question.sectionId` are now `string \| null` ✓. `src/lib/api.ts:83` `api.lesson` return type now `section: Section \| null` ✓. BUT (a) `api.ts:90` `api.question` STILL declares `section: Section` (non-null) — type lie (N3); (b) `api.ts:83` types `certification: any, competency: any` instead of introducing the suggested `Certification`/`Competency`/`Module` shared types, and omits `module` even though route returns it (N6); (c) `types.ts:210-221` `QuizAttemptRow` still missing `certificationId` (N5) — original audit's #4(c) suggested adding it. |
+| 5 | HIGH     | **PARTIAL**  | `Question.sectionId: string \| null` ✓. Audit's #5 suggested ALSO adding `certificationId: string \| null; domainId: string \| null; competencyId: string \| null;` to the shared `Question` interface. `src/lib/types.ts:102-124` does NOT include these — Question type still has only `sectionId, lessonId` nullable; cert-track fields are invisible to typed consumers. |
+| 6 | HIGH     | **FIXED**    | `src/app/api/quiz/submit/route.ts:50,59-65` now returns `explanation: q?.explanation ?? null` per result. UI `src/components/student/quiz.tsx:556-561` renders `{res?.explanation ? <p>Explanation: {res.explanation}</p> : null}`. End-to-end verified via curl: result[0].explanation returned the full authored explanation text. ✓ |
+| 7 | HIGH     | **FIXED**    | `src/lib/store.ts:34,68-69` `openCertQuiz(certificationId, difficulty?)` sets `quizCertificationId` + clears `quizSectionId` ✓. `src/components/student/quiz.tsx:54-79,138-214` `QuizConfig` carries `certificationId`, `startMutation` sends it to `api.startQuiz`, and the discipline `<Select>` (lines 199-209) lists certs with `value=\`cert:${c.id}\`` ✓. `src/components/student/lesson-viewer.tsx:90` cert-track branch calls `store.openCertQuiz(certification.id)` ✓. `src/lib/api.ts:115` `startQuiz` body type accepts `certificationId?: string` ✓. QuizConfig JSX is well-formed: outer ternary at lines 173-214 — the cert banner `<div>` (174-180) is the true branch, the discipline Select `<div>` (182-213) is the false branch; no broken JSX. End-to-end curl POST /api/quiz/start with cert cuid returned 200 with cert-track questions. ✓ |
+| 8 | HIGH     | **FIXED**    | `src/app/api/lessons/route.ts:36,42-44` POST accepts `sectionId OR certificationId` (+ competencyId, moduleId) ✓. `src/app/api/questions/route.ts:34,43-46` POST accepts `sectionId OR certificationId` (+ competencyId, domainId, lessonId) ✓. (Admin UI form changes were out-of-scope per worklog — only REST API verified.) |
+| 9 | MEDIUM   | **FIXED**    | `src/lib/ref-content/cmrp.ts:152 (create), 158 (update)` both set `group: "Maintenance & Reliability"`. DB probe: CMRP row has group="Maintenance & Reliability" ✓. All 5 certs have non-null group. |
+| 10 | MEDIUM  | **NOT FIXED** | `src/app/api/auth/register/route.ts:5-14` STILL has only `if (!email \|\| !password)` — no email format check, no `password.length >= 8` check, no zod. Worse: `emailVerified: new Date()` (line 12) still auto-verifies. **Verified via curl**: POST with `{"email":"not-an-email","password":"x"}` returned HTTP 200 + a real user row (deleted after probe). Worklog claimed this was fixed; the code shows it wasn't. |
+| 11 | MEDIUM  | **NOT FIXED** | Out of scope of listed fixes. 4 cross-file duplicate question stems between `seed-data.ts` and `engineering-mathematics.ts` remain in source (runtime DB has none due to delete-then-recreate in the loader). |
+| 12 | MEDIUM  | **FIXED**    | `src/app/api/progress/route.ts:13,44-57` includes cert-track attempts as a "Certification quiz" bucket. Line 46 keys by `a.sectionId || \`cert:${a.certificationId ?? "mixed"}\``; line 48 synthesizes a pseudo-section with title "Certification quiz". Curl `/api/progress` (with my test student key) returned `bySection[0].section.title="Certification quiz"`, attempts=1, accuracy=100 ✓. Note: `a.certificationId` is read at runtime (Prisma scalar) but `QuizAttemptRow` type doesn't declare it — see N5. |
+| 13 | MEDIUM  | **FIXED**    | `src/app/api/quiz/start/route.ts:18,42` reads `body.certificationId` and persists `certificationId: certificationId ?? null` on `db.quizAttempt.create`. DB probe: 2 QuizAttempt rows carry certificationId (both with sectionId=null). ✓ |
+| 14 | LOW     | **NOT FIXED** | Out of scope. `src/lib/api.ts:99-100` `api.certifications(): apiGet<any[]>` — still typed `any[]`, no `CertTree` type promoted to `types.ts`. |
+| 15 | LOW     | **NOT FIXED** | Out of scope. `src/app/api/tracker/route.ts:41` still has `status: l.status as any` (ContentStatus already exists). |
+| 16 | LOW     | **NOT FIXED** | Out of scope. Schema uniqueness constraints not extended to cert-axis (Lesson still only `@@unique([sectionId, slug])`; Domain.code still nullable). |
+
+### NEW problems introduced by the fixes
+
+| # | Sev  | File:line | Description |
+|---|------|-----------|-------------|
+| N1 | MED | `src/app/api/tracker/route.ts:89,100` | KO double-count. Line 89 `const certKO = await db.knowledgeObject.count()` counts ALL KOs in the DB (general + cert). Line 100 adds it to the per-section general KO sum (which already counts general-track KOs via `s._count.knowledgeObjects`). Result: tracker reports `totals.knowledgeObjects=91` when the true value is 87 (4 general + 83 cert). Fix: `db.knowledgeObject.count({ where: { sectionId: null, certificationId: { not: null } } })` (or simpler `where: { sectionId: null }`). |
+| N2 | LOW | `src/app/api/tracker/route.ts:99` | `totals.lessonsFullTemplate` adds `certLessonsReady` (READY count) as a stand-in for cert-track "full template" count. Semantically wrong — READY status is orthogonal to "has 24-section template". Currently coincidentally correct (all 59 cert READY lessons happen to have sections JSON populated), but fragile — any future cert lesson that is READY without the full template (or vice versa) will miscount. Display-only impact (overallReadiness uses `lessonsReady` not `lessonsFullTemplate`). |
+| N3 | MED | `src/lib/api.ts:90` | `api.question(id)` return type `Question & { section: Section; lesson: Lesson \| null }` declares `section: Section` (non-null) but the route (`/api/questions/[id]` line 13) returns `section: null` for cert-track questions (Prisma `Question.section` is `Section?`). Any consumer doing `question.section.title` on a cert-track question will crash at runtime. Inconsistent with the rest of fix #4. |
+| N4 | LOW | `src/lib/types.ts:202-207` | `QuizSubmitResponse.results[]` type declares only `{ questionId, selectedOptionId, isCorrect, correctOptionId }` — missing `explanation: string \| null` even though the route (`/api/quiz/submit` line 50) returns it and the UI (`quiz.tsx:556`) accesses `res?.explanation`. TS happens to allow the access (since `no-explicit-any` is off), but the type contract is incomplete. |
+| N5 | LOW | `src/lib/types.ts:210-221` | `QuizAttemptRow` type has no `certificationId` field. Progress route reads `a.certificationId` (line 46, 48) and the QuizAttempt schema has the column. The shared type hides this from typed consumers (e.g., the recentAttempts UI row can show "Certification quiz" but can't surface WHICH cert). |
+| N6 | LOW | `src/lib/api.ts:83` | `api.lesson` return type uses `certification: any` and `competency: any` rather than introducing the suggested `Certification`/`Competency` shared types (audit #4(c) suggested this). Also omits `module` from the declared return shape even though `/api/lessons/[id]` route (line 15) returns `module: true`. Type lies on 3 fields. |
+
+### Final verdict — NOT problem-free
+
+Remaining issues by severity:
+
+- **CRITICAL: 1** — Original #1 PARTIAL: ~10 mutating API routes still unauthenticated
+  (sections/lessons/questions POST+PUT+DELETE, status PUT ×2, references POST, matrix
+  POST). Anyone with the URL can mutate the knowledge DB. The team's fix scope only
+  covered the 2 worst offending admin endpoints (seed, load-reference) per the worklog;
+  the rest remain a CRITICAL exposure.
+- **HIGH: 1** — Original #4 PARTIAL / NEW N3: `api.question` return type lies about
+  `section` being non-null; consumers will crash on cert-track questions.
+- **MEDIUM: 4** — NEW N1 (tracker KO double-count); NEW N6 (api.lesson type lies on
+  cert/competency/module); original #10 NOT FIXED (register validation — no email
+  format, no password >= 8, auto email-verified); original #11 NOT FIXED (4 dup stems
+  in source, out of scope).
+- **LOW: 7** — NEW N2 (lessonsFullTemplate proxy); NEW N4 (QuizSubmitResponse missing
+  `explanation` field); NEW N5 (QuizAttemptRow missing `certificationId`); original #5
+  PARTIAL (Question type missing `certificationId/domainId/competencyId` fields); original
+  #14 NOT FIXED (`api.certifications` still `any[]`); original #15 NOT FIXED (tracker
+  still `as any`); original #16 NOT FIXED (schema cert-axis uniqueness).
+
+**Total remaining issues: 13** (1 CRIT, 1 HIGH, 4 MED, 7 LOW).
+
+**Top 3 priorities before any production deploy:**
+1. Lock down the remaining ~10 mutating API routes with `requireAdmin` (or session-based
+   role check) — closes the CRITICAL exposure from #1 PARTIAL.
+2. Fix the `api.question` type lie (N3) + promote the missing fields to the shared
+   types (N4, N5, N6, #5 PARTIAL) so the cert-track types stop lying to consumers.
+3. Implement the originally-listed fix #10 (register email+password validation) — the
+   worklog claimed it was fixed but the code shows it wasn't (no zod, no length check,
+   still auto email-verified).
+
+The 7 explicitly-scoped fix items that were FULLY DONE: #2, #6, #7, #8, #9, #12, #13
+(and the explicit scope of #1 was the 2 admin routes only). The other 4 listed fix items
+(#3, #4, #5, #10) were only PARTIALLY done or NOT done.
+
+No files were modified during this re-audit (except DB-level deletion of the bad
+`not-an-email` user created during a runtime probe of fix #10).

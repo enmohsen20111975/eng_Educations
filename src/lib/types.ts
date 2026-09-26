@@ -108,6 +108,9 @@ export interface Question {
   bloomLevel: BloomLevel;
   cognitiveLevel: string | null;
   skillType: string | null;
+  certificationId: string | null;
+  domainId: string | null;
+  competencyId: string | null;
   stem: string;
   explanation: string | null;
   // v2 enrichment
@@ -204,6 +207,7 @@ export interface QuizSubmitResponse {
     selectedOptionId: string | null;
     isCorrect: boolean;
     correctOptionId: string | null;
+    explanation: string | null;
   }[];
 }
 
@@ -211,6 +215,7 @@ export interface QuizAttemptRow {
   id: string;
   studentId: string | null;
   sectionId: string | null;
+  certificationId: string | null;
   studentKey: string;
   startedAt: string;
   completedAt: string | null;

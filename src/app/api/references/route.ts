@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { bad, ok, serverError } from "@/lib/api-helpers";
+import { bad, ok, serverError, requireAdmin } from "@/lib/api-helpers";
 import { SOURCE_LEVELS } from "@/lib/spec";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +20,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const guard = await requireAdmin(req); if (guard) return guard;
   let body: any;
   try { body = await req.json(); } catch { return bad("Invalid JSON"); }
   const { sectionId, title, level, type, url, citation } = body ?? {};

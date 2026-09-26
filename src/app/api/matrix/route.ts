@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { bad, ok, serverError } from "@/lib/api-helpers";
+import { bad, ok, serverError, requireAdmin } from "@/lib/api-helpers";
 import { BLOOM_LEVELS, DIFFICULTIES, QUESTION_TYPES } from "@/lib/types";
 
 export const revalidate = 3600; // ISR: cache knowledge content 1h (read-heavy, fast)
@@ -63,6 +63,7 @@ function defaultTarget(d: string, t: string): number {
 }
 
 export async function POST(req: Request) {
+  const guard = await requireAdmin(req); if (guard) return guard;
   let body: any;
   try {
     body = await req.json();

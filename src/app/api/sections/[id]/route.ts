@@ -1,10 +1,11 @@
 import { db } from "@/lib/db";
-import { notFound, ok, serverError } from "@/lib/api-helpers";
+import { notFound, ok, serverError, requireAdmin } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  const guard = await requireAdmin(req); if (guard) return guard;
   try {
     const section = await db.section.findUnique({
       where: { id },

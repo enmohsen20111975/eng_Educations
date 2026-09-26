@@ -1,10 +1,11 @@
 import { db } from "@/lib/db";
-import { bad, ok, serverError } from "@/lib/api-helpers";
+import { bad, ok, serverError, requireAdmin } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
 export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  const guard = await requireAdmin(req); if (guard) return guard;
   let body: any;
   try { body = await req.json(); } catch { return bad("Invalid JSON"); }
   try {

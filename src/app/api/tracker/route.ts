@@ -86,7 +86,7 @@ export async function GET() {
     const certReadyLMap = new Map(certReadyL.map((r:any)=>[r.certificationId,r._count._all]));
     const certReadyQ = await db.question.groupBy({ by: ["certificationId"], where: { status: "READY", certificationId: { not: null } }, _count: { _all: true } });
     const certReadyQMap = new Map(certReadyQ.map((r:any)=>[r.certificationId,r._count._all]));
-    const certKO = await db.knowledgeObject.count();
+    const certKO = await db.knowledgeObject.count({ where: { certificationId: { not: null } } });
     const certLessonsTotal = certRows.reduce((s:number,c:any)=>s+c._count.lessons,0);
     const certQuestionsTotal = certRows.reduce((s:number,c:any)=>s+c._count.questions,0);
     const certLessonsReady = certRows.reduce((s:number,c:any)=>s+(certReadyLMap.get(c.id)||0),0);

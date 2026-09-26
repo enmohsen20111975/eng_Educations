@@ -87,7 +87,7 @@ export const api = {
 
   questions: (params: { sectionId?: string; difficulty?: string }) =>
     apiGet<Question[]>(`/api/questions?${new URLSearchParams(params as any).toString()}`),
-  question: (id: string) => apiGet<Question & { section: Section; lesson: Lesson | null }>("/api/questions/" + id),
+  question: (id: string) => apiGet<Question & { section: Section | null; lesson: Lesson | null; certification: any; domain: any; competency: any }>("/api/questions/" + id),
   createQuestion: (data: any) => apiPost<Question>("/api/questions", data),
   updateQuestion: (id: string, data: any) => apiPut<Question>("/api/questions/" + id, data),
   deleteQuestion: (id: string) => apiDelete("/api/questions/" + id),
