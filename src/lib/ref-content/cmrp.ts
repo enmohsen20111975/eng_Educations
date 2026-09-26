@@ -155,6 +155,7 @@ export async function loadReference() {
       order: 1,
     },
     update: {
+      group: "Maintenance & Reliability",
       name: "CMRP",
       fullName: "Certified Maintenance & Reliability Professional",
       body: "SMRP",
