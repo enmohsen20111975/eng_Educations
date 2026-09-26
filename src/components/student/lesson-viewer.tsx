@@ -34,6 +34,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LessonTTS } from "@/components/student/lesson-tts";
+import { SimulationRenderer } from "@/components/simulations/registry";
 
 export function LessonView() {
   const store = useAppStore();
@@ -178,6 +179,11 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
           lessonTitle={lesson.title}
           lang="en"
         />
+      </div>
+
+      {/* Interactive Simulations */}
+      <div className="mb-4">
+        <SimulationRenderer slug={lesson.slug} competencyName={competency?.name} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
