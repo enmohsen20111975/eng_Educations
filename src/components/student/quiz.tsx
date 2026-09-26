@@ -529,10 +529,10 @@ function QuizResults({
                       );
                     })}
                   </div>
-                  {q.explanation ? (
+                  {res?.explanation ? (
                     <p className="mt-3 rounded-lg bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
                       <span className="font-medium text-foreground">Explanation: </span>
-                      {q.explanation}
+                      {res.explanation}
                     </p>
                   ) : null}
                 </div>

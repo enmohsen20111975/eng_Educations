@@ -61,5 +61,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "eng-edu-dev-secret-change-in-prod",
+  secret: process.env.NEXTAUTH_SECRET || (process.env.NODE_ENV === "production" ? undefined : "eng-edu-dev-local-only-not-for-prod"),
 };

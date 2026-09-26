@@ -1801,3 +1801,191 @@ COMPLETION NOTE: This loader (17-CRE-RPO) completes the CRE certification (7/7 d
   - src/lib/ref-content/cre-production-operations.ts (RPO — this Task 17-CRE-RPO)
   - src/lib/ref-content/cre-maintenance-logistics.ts (ML — Task 17-CRE-ML)
 Total CRE lessons delivered: 7 domains × 3 lessons = 21 full-spec 24-section lessons; 84 enriched questions; 7 KOs; ~21-42 References (shared by title across domains).
+
+---
+
+## Task ID: AUDIT
+**Agent:** general-purpose (lead engineer + professor)
+**Task:** Rigorous project audit — find concrete problems; do NOT fix, only REPORT.
+
+Work Log:
+- Read worklog (briefly) for context; then read the key files: tracker/route.ts,
+  certifications/route.ts, library.tsx, certifications.tsx, lesson-viewer.tsx,
+  quiz.tsx, store.ts, api.ts, types.ts, auth.ts, register/route.ts,
+  admin/seed/route.ts, admin/load-reference/route.ts, quiz/start/route.ts,
+  quiz/submit/route.ts, lessons/route.ts, lessons/[id]/route.ts,
+  questions/route.ts, questions/[id]/route.ts, sections/route.ts,
+  sections/[id]/route.ts, references/route.ts, knowledge-objects/route.ts,
+  matrix/route.ts, progress/route.ts, attempts/route.ts, schema.prisma,
+  seed-data.ts (full), cmrp.ts + 4 sibling cert-structure loaders
+  (cre.ts, cama.ts, pmp.ts, six-sigma.ts), and engineering-mathematics.ts.
+- Ran a script (Node) over all 25 ref-content files + seed-data.ts to detect
+  duplicate question stems. Within-file duplicates: 0. Cross-file duplicates
+  between seed-data.ts and engineering-mathematics.ts: 4 (listed below).
+- Verified schema back-relations and @unique constraints by reading schema.prisma
+  in full (704 lines).
+
+### Audit Findings — numbered list
+
+---
+
+**1. [CRITICAL] All admin/mutating API routes are completely unauthenticated.**
+- Files: `src/app/api/admin/seed/route.ts:6-20`,
+  `src/app/api/admin/load-reference/route.ts:9-27`,
+  `src/app/api/sections/route.ts:32-52` (POST),
+  `src/app/api/sections/[id]/route.ts:26-61` (PUT/DELETE),
+  `src/app/api/lessons/route.ts:29-58` (POST),
+  `src/app/api/lessons/[id]/route.ts:30-67` (PUT/DELETE),
+  `src/app/api/questions/route.ts:26-65` (POST),
+  `src/app/api/questions/[id]/route.ts:24-74` (PUT/DELETE),
+  `src/app/api/lessons/[id]/status/route.ts:6-21` (PUT),
+  `src/app/api/questions/[id]/status/route.ts:6-20` (PUT),
+  `src/app/api/references/route.ts:22-46` (POST),
+  `src/app/api/matrix/route.ts:65-93` (POST).
+- Description: No route calls `getServerSession(authOptions)`. `useSession` /
+  `getServerSession` only appears in `src/app/api/auth/[...nextauth]/route.ts`
+  (the NextAuth handler itself). The "auth" infrastructure is in name only.
+  Anyone with the URL can: POST `/api/admin/seed` `{reset:true}` → wipes the
+  entire knowledge DB (quizAnswer, quizAttempt, questionOption, question,
+  lesson, generationMatrixCell, section); POST `/api/admin/load-reference`
+  `{sectionSlug: "<anything>"}` → runs an arbitrary loader module from
+  `src/lib/ref-content/`; POST/PUT/DELETE sections, lessons, questions,
+  references, matrix cells; mutate any record's status/confidence/version.
+- Suggested fix: gate every non-GET handler with
+  `const session = await getServerSession(authOptions); if (!session || (session.user.role !== "instructor" && session.user.role !== "admin")) return NextResponse.json({error:"forbidden"},{status:403});`
+  Add a shared `requireAdmin()` helper in `src/lib/api-helpers.ts`.
+
+---
+
+**2. [CRITICAL] `NEXTAUTH_SECRET` falls back to a hardcoded public secret.**
+- File: `src/lib/auth.ts:64`.
+- Code: `secret: process.env.NEXTAUTH_SECRET || "eng-edu-dev-secret-change-in-prod",`
+- Description: If the env var is missing in production, JWTs are signed with a
+  publicly-known constant. An attacker can forge any user's session token,
+  including the `role: "admin"` claim. Combined with finding #1, an unauth'd
+  attacker can become admin without ever registering.
+- Suggested fix: `if (process.env.NODE_ENV === "production" && !process.env.NEXTAUTH_SECRET) throw new Error("NEXTAUTH_SECRET must be set in production");` at module load, then `secret: process.env.NEXTAUTH_SECRET!`.
+
+---
+
+**3. [HIGH] Coverage Tracker undercounts — ignores the entire certification track.**
+- File: `src/app/api/tracker/route.ts:11-95`; UI: `src/components/student/tracker.tsx:54-56,118-122`.
+- Description: The `GET` handler only iterates `db.section.findMany({ include: { lessons, _count } })` and `db.lesson.groupBy` / `db.question.groupBy` by `sectionId`. It never queries `db.certification`, never aggregates cert-track lessons (`sectionId = null, certificationId != null`), and never aggregates cert-track questions/KOs. The `totals.overallReadiness` (line 92-94) is therefore the average of section readiness only — typically the CMRP/CRE/CAMA/PMP/Six-Sigma cert readiness (which the platform's spec calls "the core of the platform") is invisible on the Coverage Tracker. The UI label says "Detailed progress across all 23 disciplines" — which is honest to the data, but the data is wrong.
+- Suggested fix: also call `db.certification.findMany({ include: { domains, _count } })`, fetch cert-track `readyLessonsMap` and `readyQMap` by `certificationId`, compute per-cert readiness (reuse the same formula from `certifications/route.ts:59-62`), then return a new `certifications: [...]` array on the tracker payload and a combined `totals.overallReadiness` weighted by total lessons+questions across both tracks. Add a "Certifications" panel to `TrackerView`.
+
+---
+
+**4. [HIGH] `api.lesson` return type lies about `section` being required.**
+- Files: type `src/lib/api.ts:83`; route `src/app/api/lessons/[id]/route.ts:9-22`; shared type `src/lib/types.ts:32-54`.
+- Description: api.ts declares `apiGet<Lesson & { section: Section; questions: Question[] }>` (non-null `section`). The route returns `Lesson & { section: Section | null; certification; competency; module; questions: { options }[] }` (the additional `certification`, `competency`, `module` relations are absent from the type, and `section` is actually nullable because the Prisma model has `sectionId String?` and the relation is `Section?`). The `Lesson` interface in types.ts also declares `sectionId: string` (non-null) — wrong for cert-track lessons. Only `lesson-viewer.tsx:70-93` happens to guard with `section ? … : …`; any other consumer doing `lesson.section.title` will throw at runtime.
+- Suggested fix: (a) change types.ts `Lesson.sectionId: string | null`; (b) change api.ts to `apiGet<Lesson & { section: Section | null; certification: Certification | null; competency: Competency | null; module: Module | null; questions: (Question & { options: QuestionOption[] })[] }>`; (c) introduce the missing `Certification`, `Competency`, `Module` shared types.
+
+---
+
+**5. [HIGH] `Question` shared type wrongly declares `sectionId` non-null.**
+- File: `src/lib/types.ts:104`.
+- Description: `sectionId: string;` but Prisma schema (`schema.prisma:107`) is `sectionId String?`. Cert-track questions (`sectionId = null, certificationId != null`) cannot be represented by this type — TS consumers can never see the null.
+- Suggested fix: `sectionId: string | null;` and add `certificationId: string | null; domainId: string | null; competencyId: string | null;` to the shared `Question` interface (they already exist on the Prisma model).
+
+---
+
+**6. [HIGH] Quiz review screen never shows the explanation — type contract hides it.**
+- Files: type `src/lib/types.ts:191-195` (`QuizStartResponse.questions: Question[]`); start route `src/app/api/quiz/start/route.ts:49-68`; submit route `src/app/api/quiz/submit/route.ts:84-90`; UI `src/components/student/quiz.tsx:532-536`.
+- Description: The start route returns a *stripped* question — `explanation: null` (line 58), and omits `cognitiveLevel`, `whyCorrect`, `whyOthersWrong`, `referenceIds`, `knowledgeObjectId`, `status`, `verificationStatus`, `version`. The submit route returns `results: [{ questionId, selectedOptionId, isCorrect, correctOptionId }]` — no explanation field. The Quiz review UI (quiz.tsx:532-536) renders `{q.explanation ? (<ExplanationCard/>) : null}` — but `q.explanation` is always `null` because the start response set it so and the submit response never replaces it. Net effect: learners see correct/incorrect markers but NEVER see the authored explanation on the review screen — silent UX bug.
+- Suggested fix: in `quiz/submit/route.ts`, JOIN each graded result with the question's `explanation` field and return `results: [{ ...graded, explanation, whyCorrect, whyOthersWrong }]`; update `QuizSubmitResponse` type accordingly; have the UI render `result.explanation`.
+
+---
+
+**7. [HIGH] Quiz UI cannot start a certification-based quiz (backend support is dead code).**
+- Files: route `src/app/api/quiz/start/route.ts:18,25`; api helper `src/lib/api.ts:115-116`; store `src/lib/store.ts:32,63-64`; UI `src/components/student/quiz.tsx:147-189,69-82`; lesson-viewer call `src/components/student/lesson-viewer.tsx:90`.
+- Description: The backend accepts `body.certificationId` and filters questions by it (lines 18, 25), but every layer above the route drops it: (a) `api.startQuiz` types the body as `{ sectionId?; difficulty?; count? }` — no `certificationId`; (b) `store.openQuiz(sectionId, difficulty)` only carries `quizSectionId`; (c) `QuizConfig` only renders a Discipline `<Select>` populated from `api.sections()` — no cert selector; (d) the cert-track branch in lesson-viewer calls `store.openQuiz(null)` (line 90), which loads the quiz view with `quizSectionId = null` → silently defaults to "All disciplines (mixed)" instead of "quiz this cert". So a learner reading a CMRP lesson and clicking "Quiz CMRP" gets random general-track questions, not CMRP questions.
+- Suggested fix: add `quizCertificationId` to the store + `certificationId?` to `api.startQuiz`'s body type; render a second `<Select>` ("Certification") in `QuizConfig` populated from `api.certifications()`; thread `certificationId` from the lesson-viewer cert branch.
+
+---
+
+**8. [HIGH] Admin Console cannot author cert-track content (lessons or questions).**
+- Files: `src/app/api/lessons/route.ts:36` (POST requires `sectionId`); `src/app/api/questions/route.ts:34` (POST requires `sectionId`); `src/components/admin/lessons-manager.tsx:41-57` (`FormState.sectionId: string`, required); `src/components/admin/questions-manager.tsx:54-64` (`FormState.sectionId: string`, required).
+- Description: The schema supports cert-track lessons (`sectionId XOR competencyId XOR certificationId`) and the cert loaders populate them, but the Admin UI + REST API only accept the general-track axis. An instructor cannot create or edit a CMRP lesson or a CMRP question through the browser. They can only edit cert content by hand-editing the `.ts` loader files and re-running the unprotected loader endpoint.
+- Suggested fix: relax the POST handlers to accept `(sectionId | competencyId | certificationId)` (one-of, validated), add a "Track" radio (General / Certification) to the admin forms, and add competency/certification selectors.
+
+---
+
+**9. [MEDIUM] CMRP structure loader omits `group`; the other 4 cert loaders set it.**
+- File: `src/lib/ref-content/cmrp.ts:132-164` (both `create` and `update` blocks omit `group`).
+- Verified against: `cama.ts`, `cre.ts`, `pmp.ts`, `six-sigma.ts` — all four set `group: "Maintenance & Reliability"` (cama/cre) or `"Project & Business"` (pmp) or `"Quality"` (six-sigma) in both blocks.
+- Current behavior: the Library component (`src/components/student/library.tsx:80`) falls back to `c.group || "Maintenance & Reliability"` — so CMRP happens to land in the correct bucket today. But the fallback is fragile: any Library refactor that changes the default would silently orphan CMRP, and the data is inconsistent (CMRP row has `group = NULL` while its peers have it populated).
+- Suggested fix: add `group: "Maintenance & Reliability"` to both `create` and `update` of the CMRP upsert in `cmrp.ts:135-164`.
+
+---
+
+**10. [MEDIUM] `register` route does not validate input, rate-limit, or actually verify email.**
+- File: `src/app/api/auth/register/route.ts:5-14`.
+- Description: (a) no email format validation (only `if (!email || !password)`); (b) no password length/complexity check — bcrypt will accept a 1-char password; (c) no rate limiting — open to credential stuffing and brute-force registration; (d) `emailVerified: new Date()` is set on creation, but `auth.ts:28` gates sign-in on `if (!user || !user.emailVerified) return null;` — so the email-verification gate is meaningless; every freshly-registered account is auto-verified. (e) check-then-act race: `findUnique` then `create` is not atomic; the `email @unique` DB constraint will catch a duplicate but the 409 error message ("email already registered") is correct only by accident.
+- Suggested fix: validate with zod (`z.string().email()`, `z.string().min(8)`); set `emailVerified: null` on creation; implement a VerificationToken flow + send-email step; add per-IP rate-limiting (e.g., upstash/ratelimit).
+
+---
+
+**11. [MEDIUM] 4 cross-duplicate question stems between `seed-data.ts` and `engineering-mathematics.ts`.**
+- Files: `src/lib/seed-data.ts` and `src/lib/ref-content/engineering-mathematics.ts`.
+- Duplicated stems (verified via stem-text scan over both files):
+  1. "Which rule is used to differentiate a composition f(g(x))?"
+  2. "The general solution of y″ − 5y′ + 6y = 0 is:"
+  3. "For any event A in a sample space, P(A) is bounded by:"
+  4. "Two fair dice are rolled. What is P(sum = 7)?"
+- Runtime impact: the engineering-mathematics loader (line ~108600) does `db.question.deleteMany({ where: { sectionId: section.id } })` before re-creating, so after seed→load-reference the DB has 1 copy per stem (the loader's), not 2. But the seed-data and ref-content modules now hold TWO source-of-truth copies of the same content — drift hazard (e.g., the seed's version lacks `whyCorrect`, `whyOthersWrong`, `cognitiveLevel`, KO link).
+- Suggested fix: delete the 4 affected questions from `SEED_QUESTIONS` in `seed-data.ts` (or delete them from the loader) so there is a single source of truth.
+
+---
+
+**12. [MEDIUM] Progress summary silently drops certification-track quiz attempts.**
+- File: `src/app/api/progress/route.ts:13, 44-57, 66, 116`.
+- Description: `findMany` includes `section: true` but never `certification: true`; the `bySecMap` loop (line 45) does `if (!a.section) continue;` — so any attempt with `sectionId = null` (cert quiz) is excluded from `bySection`, `bestSection`, and `sectionsCovered`. The user's recent-attempts list (line 118-129) does include them, but with `section: null` so the UI shows a blank discipline.
+- Suggested fix: include `certification: true` in the findMany; group by `a.sectionId ?? a.certificationId`; surface both per-section and per-cert breakdowns in `ProgressSummary`; update `QuizAttemptRow.section` to `section?: Section | null; certification?: Certification | null;` in types.ts.
+
+---
+
+**13. [MEDIUM] QuizAttempt row is missing `certificationId` even when the start request carried it.**
+- File: `src/app/api/quiz/start/route.ts:18, 39-46`.
+- Description: the handler reads `body.certificationId` (line 18), uses it to filter questions (line 25), but the `db.quizAttempt.create` data object (lines 39-46) writes only `studentKey`, `sectionId`, `totalQuestions`, `questionIds` — never `certificationId`. So even if a future UI fix (#7) sends `certificationId`, the attempt row will not record it, breaking any per-cert analytics. (Schema supports it: `QuizAttempt.certificationId String?` at `schema.prisma:576`.)
+- Suggested fix: `data: { studentKey, sectionId: sectionId ?? null, certificationId: certificationId ?? null, totalQuestions, questionIds }`.
+
+---
+
+**14. [LOW] `api.certifications` is typed `any[]` and consumers cast `as any`.**
+- File: `src/lib/api.ts:99-100`; consumers `src/components/student/certifications.tsx:74-77` and `src/components/student/library.tsx:67-70`.
+- Description: the local `CertTree` interface in `certifications.tsx:30-71` already exists; promote it to `src/lib/types.ts` and type `api.certifications()` as `apiGet<CertTree[]>`.
+- Suggested fix: export `CertTree` from `types.ts`; replace `any[]` in api.ts; drop the `as any` casts.
+
+---
+
+**15. [LOW] `tracker/route.ts:41` casts `l.status as any`.**
+- File: `src/app/api/tracker/route.ts:41`.
+- Description: defeats type safety; `ContentStatus` already exists.
+- Suggested fix: `status: l.status as ContentStatus`.
+
+---
+
+**16. [LOW] Lesson/Domain uniqueness constraints don't enforce cert-axis uniqueness.**
+- File: `prisma/schema.prisma:97` (`@@unique([sectionId, slug])`) and `:266` (`@@unique([certificationId, code])`).
+- Description: with SQLite (and Postgres) NULLs in unique indexes are treated as distinct, so two cert-track lessons with the same `slug` and NULL `sectionId` are allowed (silent collision across competencies), and two domains with NULL `code` per cert are allowed. The CMRP loader deletes+recreates on every run so it never trips the constraint, but ad-hoc admin creation (after fix #8 lands) could create two `slug="introduction"` cert lessons with no DB error.
+- Suggested fix: add `@@unique([competencyId, slug])` and `@@unique([certificationId, slug])` to the `Lesson` model; make `Domain.code` non-nullable (it's already non-null for every loader).
+
+---
+
+### Audit Summary
+- **Critical:** 2 (#1, #2)
+- **High:** 6 (#3, #4, #5, #6, #7, #8)
+- **Medium:** 5 (#9, #10, #11, #12, #13)
+- **Low:** 3 (#14, #15, #16)
+- **Total:** 16 concrete findings.
+
+Top 3 priorities (recommended next-task scope):
+1. Lock down all mutating API routes with session+role check (#1) and the
+   NEXTAUTH_SECRET guard (#2) — security baseline before any production deploy.
+2. Fix the Quiz explanation leak (#6) + cert-quiz UI gap (#7) — the
+   certification track's flagship UX (Quiz) is currently broken end-to-end.
+3. Unify the Coverage Tracker to include the certification track (#3) and fix
+   the `Lesson`/`Question` types' nullability lies (#4, #5) — these are the
+   shared-contract bugs that block any safe refactor of the student UI.
+
+No files were modified during this audit.

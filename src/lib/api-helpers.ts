@@ -44,3 +44,18 @@ export function parseOr400<T>(
   }
   return { ok: true, data: parsed.data };
 }
+
+/** Guard for mutating routes. Allows an x-admin-key header matching the
+ * ADMIN_KEY env var (for CLI/seed use) OR a NextAuth admin session.
+ * In dev with no ADMIN_KEY set, allows all (so seeding works). */
+export async function requireAdmin(req: Request): Promise<Response | null> {
+  const adminKey = process.env.ADMIN_KEY;
+  if (adminKey) {
+    const provided = req.headers.get("x-admin-key");
+    if (provided && provided === adminKey) return null; // allowed
+    return NextResponse.json({ error: "Unauthorized: admin key required" }, { status: 401 });
+  }
+  // no ADMIN_KEY set in dev → allow ( seeding via curl )
+  if (process.env.NODE_ENV !== "production") return null;
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}

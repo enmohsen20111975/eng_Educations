@@ -1,9 +1,10 @@
-import { ok, serverError } from "@/lib/api-helpers";
+import { ok, serverError, requireAdmin } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
 /** Run the seed. POST { reset?: boolean } -> { sections, lessons, questions, cells } */
 export async function POST(req: Request) {
+  const guard = await requireAdmin(req); if (guard) return guard;
   let body: any = {};
   try {
     body = await req.json();

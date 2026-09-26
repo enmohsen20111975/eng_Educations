@@ -1,4 +1,4 @@
-import { ok, bad, serverError } from "@/lib/api-helpers";
+import { ok, bad, serverError, requireAdmin } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
  * loader module lives at src/lib/ref-content/<slug>.ts and exports
  * `loadReference(sectionId)` returning { lessons, kos, questions, references }. */
 export async function POST(req: Request) {
+  const guard = await requireAdmin(req); if (guard) return guard;
   let body: any;
   try { body = await req.json(); } catch { return bad("Invalid JSON"); }
   const slug: string = body?.sectionSlug;

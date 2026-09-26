@@ -47,6 +47,7 @@ export async function POST(req: Request) {
       selectedOptionId: string | null;
       isCorrect: boolean;
       correctOptionId: string | null;
+      explanation: string | null;
     }[] = [];
 
     const createData = rows.map((r) => {
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
         selectedOptionId: r.selectedOptionId ?? null,
         isCorrect,
         correctOptionId: correctOption?.id ?? null,
+        explanation: q?.explanation ?? null,
       });
       return {
         attemptId: attempt.id,

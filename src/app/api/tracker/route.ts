@@ -80,18 +80,28 @@ export async function GET() {
       };
     });
 
+    // cert-track aggregation (added per audit #3) — MUST run before totals
+    const certRows = await db.certification.findMany({ include: { _count: { select: { lessons: true, questions: true, knowledgeObjects: true } } } });
+    const certReadyL = await db.lesson.groupBy({ by: ["certificationId"], where: { status: "READY", certificationId: { not: null } }, _count: { _all: true } });
+    const certReadyLMap = new Map(certReadyL.map((r:any)=>[r.certificationId,r._count._all]));
+    const certReadyQ = await db.question.groupBy({ by: ["certificationId"], where: { status: "READY", certificationId: { not: null } }, _count: { _all: true } });
+    const certReadyQMap = new Map(certReadyQ.map((r:any)=>[r.certificationId,r._count._all]));
+    const certKO = await db.knowledgeObject.count();
+    const certLessonsTotal = certRows.reduce((s:number,c:any)=>s+c._count.lessons,0);
+    const certQuestionsTotal = certRows.reduce((s:number,c:any)=>s+c._count.questions,0);
+    const certLessonsReady = certRows.reduce((s:number,c:any)=>s+(certReadyLMap.get(c.id)||0),0);
+    const certQuestionsReady = certRows.reduce((s:number,c:any)=>s+(certReadyQMap.get(c.id)||0),0);
+
     const totals = {
       sections: sections.length,
-      lessons: trackerSections.reduce((s, x) => s + x.lessonsTotal, 0),
-      lessonsReady: trackerSections.reduce((s, x) => s + x.lessonsReady, 0),
-      lessonsFullTemplate: trackerSections.reduce((s, x) => s + x.lessonsFullTemplate, 0),
-      knowledgeObjects: trackerSections.reduce((s, x) => s + x.koCount, 0),
-      questions: trackerSections.reduce((s, x) => s + x.questionsTotal, 0),
-      questionsReady: trackerSections.reduce((s, x) => s + x.questionsReady, 0),
+      lessons: trackerSections.reduce((s, x) => s + x.lessonsTotal, 0) + certLessonsTotal,
+      lessonsReady: trackerSections.reduce((s, x) => s + x.lessonsReady, 0) + certLessonsReady,
+      lessonsFullTemplate: trackerSections.reduce((s, x) => s + x.lessonsFullTemplate, 0) + certLessonsReady,
+      knowledgeObjects: trackerSections.reduce((s, x) => s + x.koCount, 0) + certKO,
+      questions: trackerSections.reduce((s, x) => s + x.questionsTotal, 0) + certQuestionsTotal,
+      questionsReady: trackerSections.reduce((s, x) => s + x.questionsReady, 0) + certQuestionsReady,
       references: trackerSections.reduce((s, x) => s + x.referencesCount, 0),
-      overallReadiness: trackerSections.length
-        ? Math.round(trackerSections.reduce((s, x) => s + x.readiness, 0) / trackerSections.length)
-        : 0,
+      overallReadiness: Math.round(((trackerSections.reduce((s, x) => s + x.lessonsReady, 0) + certLessonsReady) / Math.max(1, (trackerSections.reduce((s, x) => s + x.lessonsTotal, 0) + certLessonsTotal))) * 100),
     };
 
     const lessonStatusCounts = await db.lesson.groupBy({ by: ["status"], _count: { _all: true } });
