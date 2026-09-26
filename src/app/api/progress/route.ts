@@ -42,10 +42,10 @@ export async function GET(req: Request) {
       { section: any; attempts: number; correct: number; total: number }
     >();
     for (const a of attempts) {
-      if (!a.section) continue;
-      const key = a.sectionId!;
+      // Include cert-track attempts (section null) as a pseudo "Certification" bucket
+      const key = a.sectionId || `cert:${a.certificationId ?? "mixed"}`;
       const cur = bySecMap.get(key) || {
-        section: a.section,
+        section: a.section || { id: key, title: a.certificationId ? "Certification quiz" : "Mixed / Certification", color: "emerald", icon: "Award" },
         attempts: 0,
         correct: 0,
         total: 0,

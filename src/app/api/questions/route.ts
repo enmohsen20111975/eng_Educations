@@ -30,9 +30,9 @@ export async function POST(req: Request) {
   } catch {
     return bad("Invalid JSON");
   }
-  const { sectionId, lessonId, type, difficulty, bloomLevel, skillType, stem, explanation, options } = body ?? {};
-  if (!sectionId || !type || !difficulty || !bloomLevel || !stem || !Array.isArray(options) || options.length < 2) {
-    return bad("sectionId, type, difficulty, bloomLevel, stem and >=2 options are required");
+  const { sectionId, certificationId, competencyId, domainId, lessonId, type, difficulty, bloomLevel, skillType, stem, explanation, options } = body ?? {};
+  if ((!sectionId && !certificationId) || !type || !difficulty || !bloomLevel || !stem || !Array.isArray(options) || options.length < 2) {
+    return bad("sectionId OR certificationId, type, difficulty, bloomLevel, stem and >=2 options are required");
   }
   if (!options.some((o: any) => o.isCorrect)) {
     return bad("At least one option must be marked correct");
@@ -40,7 +40,10 @@ export async function POST(req: Request) {
   try {
     const question = await db.question.create({
       data: {
-        sectionId,
+        sectionId: sectionId || null,
+        certificationId: certificationId || null,
+        competencyId: competencyId || null,
+        domainId: domainId || null,
         lessonId: lessonId || null,
         type,
         difficulty,

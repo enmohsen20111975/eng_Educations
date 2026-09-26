@@ -149,6 +149,7 @@ export async function loadReference() {
       effectiveDate: new Date("2024-01-01"),
       description:
         "The CMRP, administered by SMRP, is the leading credential for maintenance & reliability professionals. It validates competency across five pillars: Business & Management, Manufacturing Process Reliability, Equipment Reliability, Organization & Leadership, and Work Management.",
+      group: "Maintenance & Reliability",
       color: "emerald",
       icon: "Award",
       order: 1,

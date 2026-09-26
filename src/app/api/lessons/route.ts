@@ -33,13 +33,16 @@ export async function POST(req: Request) {
   } catch {
     return bad("Invalid JSON");
   }
-  if (!body?.sectionId || !body?.slug || !body?.title || !body?.conceptIntroduction) {
-    return bad("sectionId, slug, title, conceptIntroduction are required");
+  if ((!body?.sectionId && !body?.certificationId) || !body?.slug || !body?.title || !body?.conceptIntroduction) {
+    return bad("sectionId OR certificationId, slug, title, conceptIntroduction are required");
   }
   try {
     const lesson = await db.lesson.create({
       data: {
-        sectionId: body.sectionId,
+        sectionId: body.sectionId || null,
+        certificationId: body.certificationId || null,
+        competencyId: body.competencyId || null,
+        moduleId: body.moduleId || null,
         slug: body.slug,
         title: body.title,
         titleAr: body.titleAr,

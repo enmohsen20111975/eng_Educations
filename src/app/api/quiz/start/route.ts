@@ -39,6 +39,7 @@ export async function POST(req: Request) {
     const attempt = await db.quizAttempt.create({
       data: {
         studentKey,
+      certificationId: certificationId ?? null,
         sectionId: sectionId ?? null,
         totalQuestions: shuffled.length,
         questionIds: JSON.stringify(questionIds),

@@ -87,7 +87,7 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
         color: certification?.color || "emerald",
         siblings: (competency?.lessons ?? []) as { id: string; title: string; order: number }[],
         back: () => store.openCertifications(),
-        quiz: () => store.openQuiz(null), // cert quiz handled globally
+        quiz: () => certification ? store.openCertQuiz(certification.id) : store.openQuiz(null),
         quizLabel: certification ? `Quiz ${certification.name}` : "Take a quiz",
         crumbs: `${certification?.name ?? ""}${competency ? " · " + competency.name : ""}`,
       };

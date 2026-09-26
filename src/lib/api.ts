@@ -80,7 +80,7 @@ export const api = {
     apiGet<Lesson[]>(`/api/lessons?competencyId=${competencyId}`),
   lessonsByCertification: (certificationId: string) =>
     apiGet<Lesson[]>(`/api/lessons?certificationId=${certificationId}`),
-  lesson: (id: string) => apiGet<Lesson & { section: Section; questions: Question[] }>(`/api/lessons/${id}`),
+  lesson: (id: string) => apiGet<Lesson & { section: Section | null; certification: any; competency: any; questions: Question[] }>(`/api/lessons/${id}`),
   createLesson: (data: Partial<Lesson>) => apiPost<Lesson>("/api/lessons", data),
   updateLesson: (id: string, data: Partial<Lesson>) => apiPut<Lesson>("/api/lessons/" + id, data),
   deleteLesson: (id: string) => apiDelete("/api/lessons/" + id),
@@ -97,7 +97,7 @@ export const api = {
 
   tracker: () => apiGet<TrackerSummary>("/api/tracker"),
   certifications: () =>
-    apiGet<any[]>("/api/certifications"),
+    apiGet<any[]>("/api/certifications"), // CertTree[]
   loadReferenceContent: (sectionSlug: string) =>
     apiPost<any>("/api/admin/load-reference", { sectionSlug }),
 
@@ -112,7 +112,7 @@ export const api = {
   updateQuestionStatus: (id: string, data: { status?: string; verificationStatus?: string; version?: string }) =>
     apiPut<Question>(`/api/questions/${id}/status`, data),
 
-  startQuiz: (body: { sectionId?: string; difficulty?: string; count?: number }) =>
+  startQuiz: (body: { sectionId?: string; certificationId?: string; difficulty?: string; count?: number }) =>
     apiPost<QuizStartResponse>("/api/quiz/start", body),
   submitQuiz: (body: {
     attemptId: string;

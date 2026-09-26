@@ -31,7 +31,7 @@ export interface Section {
 
 export interface Lesson {
   id: string;
-  sectionId: string;
+  sectionId: string | null;
   slug: string;
   title: string;
   titleAr: string | null;
@@ -62,7 +62,7 @@ export type ContentStatus =
 
 export interface KnowledgeObject {
   id: string;
-  sectionId: string;
+  sectionId: string | null;
   lessonId: string | null;
   title: string;
   domain: string | null;
@@ -101,7 +101,7 @@ export interface QuestionOption {
 
 export interface Question {
   id: string;
-  sectionId: string;
+  sectionId: string | null;
   lessonId: string | null;
   type: QuestionType;
   difficulty: Difficulty;
@@ -133,7 +133,7 @@ export interface LessonWithCounts extends Lesson {
 }
 
 export interface MatrixCell {
-  sectionId: string;
+  sectionId: string | null;
   difficulty: Difficulty;
   bloomLevel: BloomLevel;
   type: QuestionType;

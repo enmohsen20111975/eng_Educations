@@ -23,6 +23,7 @@ interface AppState {
   adminTab: "sections" | "lessons" | "questions" | "matrix";
   /** quiz config carried into the quiz view */
   quizSectionId: string | null;
+  quizCertificationId: string | null;
   quizDifficulty: string | null;
 
   setView: (v: View) => void;
@@ -30,6 +31,7 @@ interface AppState {
   openSection: (sectionId: string) => void;
   openLesson: (lessonId: string, sectionId?: string) => void;
   openQuiz: (sectionId: string | null, difficulty?: string | null) => void;
+  openCertQuiz: (certificationId: string, difficulty?: string | null) => void;
   openProgress: () => void;
   openAdmin: (tab?: AppState["adminTab"]) => void;
   openTracker: () => void;
@@ -47,6 +49,7 @@ export const useAppStore = create<AppState>((set) => ({
   activeQuestionId: null,
   adminTab: "sections",
   quizSectionId: null,
+  quizCertificationId: null,
   quizDifficulty: null,
 
   setView: (v) => set({ view: v }),
@@ -61,7 +64,9 @@ export const useAppStore = create<AppState>((set) => ({
       activeSectionId: sectionId ?? s.activeSectionId,
     })),
   openQuiz: (sectionId, difficulty) =>
-    set({ view: "quiz", quizSectionId: sectionId, quizDifficulty: difficulty ?? null }),
+    set({ view: "quiz", quizSectionId: sectionId, quizCertificationId: null, quizDifficulty: difficulty ?? null }),
+  openCertQuiz: (certificationId, difficulty) =>
+    set({ view: "quiz", quizSectionId: null, quizCertificationId: certificationId, quizDifficulty: difficulty ?? null }),
   openProgress: () => set({ view: "progress" }),
   openAdmin: (tab) =>
     set({ view: "admin", adminTab: tab ?? "sections" }),

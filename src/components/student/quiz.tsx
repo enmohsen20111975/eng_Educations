@@ -51,10 +51,12 @@ export function QuizView() {
   const [phase, setPhase] = React.useState<Phase>("config");
   const [config, setConfig] = React.useState<{
     sectionId: string;
+    certificationId: string | null;
     difficulty: string;
     count: number;
   }>({
     sectionId: store.quizSectionId || "all",
+    certificationId: store.quizCertificationId || null,
     difficulty: store.quizDifficulty || "all",
     count: 10,
   });
@@ -63,13 +65,15 @@ export function QuizView() {
 
   // Reset phase when entering quiz view fresh
   React.useEffect(() => {
-    if (store.quizSectionId) setConfig((c) => ({ ...c, sectionId: store.quizSectionId! }));
-  }, [store.quizSectionId]);
+    if (store.quizSectionId) setConfig((c) => ({ ...c, sectionId: store.quizSectionId!, certificationId: null }));
+    if (store.quizCertificationId) setConfig((c) => ({ ...c, certificationId: store.quizCertificationId, sectionId: "all" }));
+  }, [store.quizSectionId, store.quizCertificationId]);
 
   const startMutation = useMutation({
-    mutationFn: (cfg: { sectionId: string; difficulty: string; count: number }) =>
+    mutationFn: (cfg: { sectionId: string; certificationId: string | null; difficulty: string; count: number }) =>
       api.startQuiz({
-        sectionId: cfg.sectionId === "all" ? undefined : cfg.sectionId,
+        sectionId: cfg.certificationId ? undefined : cfg.sectionId === "all" ? undefined : cfg.sectionId,
+        certificationId: cfg.certificationId ?? undefined,
         difficulty: cfg.difficulty === "all" ? undefined : cfg.difficulty,
         count: cfg.count,
       }),
@@ -137,9 +141,9 @@ function QuizConfig({
   onStart,
   loading,
 }: {
-  config: { sectionId: string; difficulty: string; count: number };
+  config: { sectionId: string; certificationId: string | null; difficulty: string; count: number };
   setConfig: React.Dispatch<
-    React.SetStateAction<{ sectionId: string; difficulty: string; count: number }>
+    React.SetStateAction<{ sectionId: string; certificationId: string | null; difficulty: string; count: number }>
   >;
   onStart: () => void;
   loading: boolean;
@@ -148,11 +152,13 @@ function QuizConfig({
     queryKey: ["sections"],
     queryFn: api.sections,
   });
+  const { data: certs } = useQuery({ queryKey: ["certifications"], queryFn: api.certifications as any });
   const store = useAppStore();
 
   const selectedSection = (sections || []).find(
     (s) => s.id === config.sectionId,
   );
+  const selectedCert = config.certificationId ? (certs || []).find((c: any) => c.id === config.certificationId) : null;
   const estMinutes = Math.ceil((config.count * 45) / 60);
 
   return (
@@ -164,17 +170,29 @@ function QuizConfig({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="p-6 lg:col-span-2">
           <div className="space-y-6">
+            {selectedCert ? (
+              <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Certification quiz</p>
+                  <p className="text-sm font-semibold">{selectedCert.name} — {selectedCert.fullName}</p>
+                </div>
+                <button onClick={() => setConfig((c) => ({ ...c, certificationId: null, sectionId: "all" }))} className="text-xs text-muted-foreground hover:text-foreground">Switch to disciplines</button>
+              </div>
+            ) : (
             <div>
-              <Label className="mb-2 block text-sm font-medium">Discipline</Label>
+              <Label className="mb-2 block text-sm font-medium">Discipline / Certification</Label>
               {isLoading ? (
                 <PageLoader label="Loading disciplines…" />
               ) : (
                 <Select
                   value={config.sectionId}
-                  onValueChange={(v) => setConfig((c) => ({ ...c, sectionId: v }))}
+                  onValueChange={(v) => {
+                    if (v.startsWith("cert:")) setConfig((c) => ({ ...c, certificationId: v.slice(5), sectionId: "all" }));
+                    else setConfig((c) => ({ ...c, sectionId: v, certificationId: null }));
+                  }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose a discipline" />
+                    <SelectValue placeholder="Choose a discipline or certification" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All disciplines (mixed)</SelectItem>
@@ -183,11 +201,17 @@ function QuizConfig({
                         {s.title}
                       </SelectItem>
                     ))}
+                    {(certs || []).length > 0 ? <SelectItem value="__certs__" disabled>— Certifications —</SelectItem> : null}
+                    {(certs || []).map((c: any) => (
+                      <SelectItem key={c.id} value={`cert:${c.id}`}>
+                        {c.name} · {c.body}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
             </div>
-
+            )}
             <div>
               <Label className="mb-2 block text-sm font-medium">Difficulty</Label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
