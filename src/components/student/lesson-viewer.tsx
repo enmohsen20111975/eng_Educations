@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LessonTTS } from "@/components/student/lesson-tts";
 import { SimulationRenderer } from "@/components/simulations/registry";
+import { getLessonImage } from "@/lib/lesson-images";
 
 export function LessonView() {
   const store = useAppStore();
@@ -94,6 +95,7 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
         crumbs: `${certification?.name ?? ""}${competency ? " · " + competency.name : ""}`,
       };
   const grad = accentGradient(ctx.color);
+  const lessonImage = getLessonImage(lesson.slug, competency?.name);
   const soft = accentSoft(ctx.color);
   const statusMeta = STATUS_META[(lesson.status as ContentStatus) || "DRAFT"];
   const hasFullTemplate = !!lesson.sections;
@@ -180,6 +182,13 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
           lang="en"
         />
       </div>
+
+      {/* Real expressive image (not SVG) */}
+      {lessonImage ? (
+        <div className="mb-4 overflow-hidden rounded-2xl border border-border shadow-sm">
+          <img src={lessonImage.url} alt={lessonImage.alt} className="h-48 w-full object-cover" />
+        </div>
+      ) : null}
 
       {/* Interactive Simulations */}
       <div className="mb-4">
