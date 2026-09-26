@@ -33,6 +33,7 @@ import type { ContentStatus } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { LessonTTS } from "@/components/student/lesson-tts";
 
 export function LessonView() {
   const store = useAppStore();
@@ -170,6 +171,14 @@ function LessonDetail({ lessonId }: { lessonId: string }) {
           </Button>
         </div>
       </Card>
+
+      <div className="mb-4">
+        <LessonTTS
+          text={sectionsObj ? Object.values(sectionsObj).filter(v => v && v !== "NOT_APPLICABLE").join("\n\n") : lesson.conceptIntroduction}
+          lessonTitle={lesson.title}
+          lang="en"
+        />
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

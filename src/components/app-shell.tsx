@@ -14,9 +14,11 @@ import {
   Target,
   Award,
   Library,
+  Languages,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAppStore, type View } from "@/lib/store";
+import { useLang, type Lang } from "@/lib/language-store";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -56,16 +58,22 @@ function ThemeToggle() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const store = useAppStore();
+  const { lang, setLang, t, dir } = useLang();
   const nav: NavItem[] = [
-    { id: "home", label: "Home", icon: LayoutDashboard, open: store.openHome },
-    { id: "library", label: "Library", icon: Library, open: store.openLibrary },
-    { id: "certifications", label: "Certs", icon: Award, open: store.openCertifications },
-    { id: "curriculum", label: "Curriculum", icon: BookOpen, open: store.openCurriculum },
-    { id: "quiz", label: "Quiz", icon: ListChecks, open: () => store.openQuiz(null) },
-    { id: "tracker", label: "Coverage", icon: Target, open: store.openTracker },
-    { id: "progress", label: "Progress", icon: Trophy, open: store.openProgress },
-    { id: "admin", label: "Admin", icon: ShieldCheck, open: () => store.openAdmin("sections") },
+    { id: "home", label: t("home"), icon: LayoutDashboard, open: store.openHome },
+    { id: "library", label: t("library"), icon: Library, open: store.openLibrary },
+    { id: "certifications", label: t("certs"), icon: Award, open: store.openCertifications },
+    { id: "curriculum", label: t("curriculum"), icon: BookOpen, open: store.openCurriculum },
+    { id: "quiz", label: t("quiz"), icon: ListChecks, open: () => store.openQuiz(null) },
+    { id: "tracker", label: t("coverage"), icon: Target, open: store.openTracker },
+    { id: "progress", label: t("progress"), icon: Trophy, open: store.openProgress },
+    { id: "admin", label: t("admin"), icon: ShieldCheck, open: () => store.openAdmin("sections") },
   ];
+
+  React.useEffect(() => {
+    document.documentElement.dir = dir();
+    document.documentElement.lang = lang;
+  }, [lang, dir]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -117,6 +125,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               })}
             </TooltipProvider>
             <div className="mx-1 h-6 w-px bg-border" />
+            <LanguageSwitcher lang={lang} setLang={setLang} />
             <ThemeToggle />
           </nav>
         </div>
@@ -127,6 +136,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <AppFooter />
+    </div>
+  );
+}
+
+function LanguageSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+  const [open, setOpen] = React.useState(false);
+  const langs: { code: Lang; label: string; flag: string }[] = [
+    { code: "en", label: "English", flag: "🇬🇧" },
+    { code: "ar", label: "العربية", flag: "🇸🇦" },
+    { code: "fr", label: "Français", flag: "🇫🇷" },
+    { code: "es", label: "Español", flag: "🇪🇸" },
+  ];
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+      >
+        <Languages className="h-4 w-4" />
+        <span className="hidden md:inline">{langs.find((l) => l.code === lang)?.flag || "🌐"}</span>
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-10 z-50 w-32 rounded-lg border border-border bg-popover p-1 shadow-lg">
+          {langs.map((l) => (
+            <button
+              key={l.code}
+              onClick={() => { setLang(l.code); setOpen(false); }}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
+                lang === l.code && "bg-primary/10 font-semibold text-primary",
+              )}
+            >
+              <span>{l.flag}</span>
+              {l.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
