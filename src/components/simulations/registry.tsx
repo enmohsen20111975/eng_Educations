@@ -9,6 +9,8 @@ import { BathtubCurveSimulation } from "./bathtub-curve";
 import { ParetoChartSimulation } from "./pareto-chart";
 import { RBDSimulation } from "./rbd-diagram";
 import { EVMSimulation } from "./evm-calculator";
+import { CPMSimulation } from "./cpm-network";
+import { FishboneSimulation } from "./fishbone-diagram";
 
 /** Maps lesson slug/competency keywords to relevant interactive simulations. */
 const SIM_MAP: { match: string[]; Sim: React.ComponentType }[] = [
@@ -20,6 +22,9 @@ const SIM_MAP: { match: string[]; Sim: React.ComponentType }[] = [
   { match: ["pareto", "80-20", "pareto-principle", "root-cause"], Sim: ParetoChartSimulation },
   { match: ["rbd", "reliability-block", "redundancy", "voting", "series", "parallel", "modeling", "markov"], Sim: RBDSimulation },
   { match: ["evm", "earned-value", "cost-management", "cpi", "spi", "eac", "vac", "pmp-process", "schedule"], Sim: EVMSimulation },
+  { match: ["cpm", "pert", "critical-path", "network", "schedule", "pmp-process", "gantt"], Sim: CPMSimulation },
+  { match: ["fishbone", "ishikawa", "root-cause", "rca", "5-why", "cause"], Sim: FishboneSimulation },
+
 ];
 
 /** Returns matching simulations for a lesson based on its slug + competency name. */
