@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { ok, serverError } from "@/lib/api-helpers";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600; // ISR: cache knowledge content 1h (read-heavy, fast)
 
 /** Full certification tree: certifications → domains → competencies, with
  * per-competency lesson/KO/question counts + overall readiness. */

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { notFound, ok, serverError } from "@/lib/api-helpers";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;

@@ -3,7 +3,7 @@ import { ok, serverError } from "@/lib/api-helpers";
 import { CONTENT_STATUSES } from "@/lib/spec";
 import type { TrackerSummary, TrackerSection } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600; // ISR: cache knowledge content 1h (read-heavy, fast)
 
 /** Coverage tracker: per-section per-lesson lifecycle status + readiness. */
 export async function GET() {

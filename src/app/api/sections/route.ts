@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { parseOr400, ok, bad, serverError } from "@/lib/api-helpers";
 import { z } from "zod";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600; // ISR: cache knowledge content 1h (read-heavy, fast)
 
 export async function GET() {
   try {

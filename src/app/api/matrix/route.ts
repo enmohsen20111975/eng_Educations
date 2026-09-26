@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { bad, ok, serverError } from "@/lib/api-helpers";
 import { BLOOM_LEVELS, DIFFICULTIES, QUESTION_TYPES } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600; // ISR: cache knowledge content 1h (read-heavy, fast)
 
 /** GET returns every matrix cell for every section, joined with the current
  * (live) count of questions matching that cell, plus section metadata. */

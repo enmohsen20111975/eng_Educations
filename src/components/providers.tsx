@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SessionProvider } from "next-auth/react";
 
 export function ThemeProvider({
   children,
@@ -35,7 +36,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem={false}
       disableTransitionOnChange
     >
-      <QueryProvider>{children}</QueryProvider>
+      <SessionProvider>
+        <QueryProvider>{children}</QueryProvider>
+      </SessionProvider>
     </ThemeProvider>
   );
 }
