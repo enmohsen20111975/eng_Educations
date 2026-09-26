@@ -5,13 +5,21 @@ import { WeibullSimulation } from "./weibull-plot";
 import { OEESimulation } from "./oee-calculator";
 import { ControlChartSimulation } from "./control-chart";
 import { FMEASimulation } from "./fmea-matrix";
+import { BathtubCurveSimulation } from "./bathtub-curve";
+import { ParetoChartSimulation } from "./pareto-chart";
+import { RBDSimulation } from "./rbd-diagram";
+import { EVMSimulation } from "./evm-calculator";
 
 /** Maps lesson slug/competency keywords to relevant interactive simulations. */
 const SIM_MAP: { match: string[]; Sim: React.ComponentType }[] = [
   { match: ["oee", "measurements", "production-reliability", "production", "6-big-loss", "tpm"], Sim: OEESimulation },
-  { match: ["weibull", "distributions", "reliability-concepts", "equipment-reliability", "bathtub", "mtbf", "availability"], Sim: WeibullSimulation },
+  { match: ["weibull", "distributions", "reliability-concepts", "equipment-reliability", "mtbf", "availability"], Sim: WeibullSimulation },
+  { match: ["bathtub", "reliability-concepts", "reliability-program", "bathtub-curve"], Sim: BathtubCurveSimulation },
   { match: ["control-chart", "spc", "control", "shewhart", "western-electric", "six-sigma-control"], Sim: ControlChartSimulation },
   { match: ["fmea", "failure-modes", "failure-mode", "rpn", "fmeca"], Sim: FMEASimulation },
+  { match: ["pareto", "80-20", "pareto-principle", "root-cause"], Sim: ParetoChartSimulation },
+  { match: ["rbd", "reliability-block", "redundancy", "voting", "series", "parallel", "modeling", "markov"], Sim: RBDSimulation },
+  { match: ["evm", "earned-value", "cost-management", "cpi", "spi", "eac", "vac", "pmp-process", "schedule"], Sim: EVMSimulation },
 ];
 
 /** Returns matching simulations for a lesson based on its slug + competency name. */
